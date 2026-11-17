@@ -1,0 +1,20 @@
+<Solution>
+    <Folder Name="/srс/" />
+    <Folder Name="/srс/ITMO.Buddy/" />
+    <Folder Name="/srс/ITMO.Buddy/Api/">
+        <Project Path="src/ITMO.Buddy/Api/ITMO.Buddy.Api/ITMO.Buddy.Api.csproj" />
+    </Folder>
+    <Folder Name="/srс/ITMO.Buddy/Application/">
+        <Project Path="src/ITMO.Buddy/Application/ITMO.Buddy.Application.Abstractions/ITMO.Buddy.Application.Abstractions.csproj" />
+        <Project Path="src/ITMO.Buddy/Application/ITMO.Buddy.Application.Contracts/ITMO.Buddy.Application.Contracts.csproj" />
+        <Project Path="src/ITMO.Buddy/Application/ITMO.Buddy.Application/ITMO.Buddy.Application.csproj" />
+    </Folder>
+    <Folder Name="/srс/ITMO.Buddy/Domain/">
+        <Project Path="src/ITMO.Buddy/Domain/ITMO.Buddy.Domain/ITMO.Buddy.Domain.csproj" />
+    </Folder>
+    <Folder Name="/srс/ITMO.Buddy/Infrastructure/">
+        <Project Path="src/ITMO.Buddy/Infrastructure/ITMO.Buddy.Infrastructure.Persistence/ITMO.Buddy.Infrastructure.Persistence.csproj" />
+        <Project Path="src/ITMO.Buddy/Infrastructure/ITMO.Buddy.Infrastructure/ITMO.Buddy.Infrastructure.csproj" />
+    </Folder>
+    <Folder Name="/tests/" />
+</Solution>
