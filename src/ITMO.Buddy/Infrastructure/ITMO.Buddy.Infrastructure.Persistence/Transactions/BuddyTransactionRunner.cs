@@ -1,0 +1,114 @@
+using System.Data;
+using ITMO.Buddy.Application.Abstractions.Persistence;
+using ITMO.Buddy.Infrastructure.Persistence.Context;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
+
+namespace ITMO.Buddy.Infrastructure.Persistence.Transactions;
+
+public sealed class BuddyTransactionRunner
+    : ITransactionRunner
+{
+    private readonly BuddyDbContext _context;
+    private readonly IUnitOfWork _unitOfWork;
+
+    public BuddyTransactionRunner(
+        BuddyDbContext context,
+        IUnitOfWork unitOfWork)
+    {
+        _context = context;
+        _unitOfWork = unitOfWork;
+    }
+
+    public async Task ExecuteAsync(
+        Func<CancellationToken, Task> operation,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(operation);
+
+        await ExecuteAsync<bool>(
+            async token =>
+            {
+                await operation(token);
+                return true;
+            },
+            cancellationToken);
+    }
+
+    public async Task<T> ExecuteAsync<T>(
+        Func<CancellationToken, Task<T>> operation,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(operation);
+
+        IDbContextTransaction transaction;
+
+        try
+        {
+            transaction = await _context.Database
+                .BeginTransactionAsync(
+                    IsolationLevel.ReadCommitted,
+                    cancellationToken);
+        }
+        catch (Exception exception) when (
+            PostgresExceptionTranslator.CanTranslate(exception))
+        {
+            throw PostgresExceptionTranslator.Translate(
+                exception);
+        }
+
+        await using (transaction)
+        {
+            T result;
+
+            try
+            {
+                result = await operation(cancellationToken);
+
+                await _unitOfWork.SaveChangesAsync(
+                    cancellationToken);
+            }
+            catch (Exception original)
+            {
+                try
+                {
+                    await transaction.RollbackAsync(
+                        CancellationToken.None);
+                }
+                catch (Exception rollbackFailure)
+                {
+                    throw new PersistenceException(
+                        PersistenceErrorCode.TransactionFailure,
+                        "The transaction and its rollback failed.",
+                        new AggregateException(
+                            original,
+                            rollbackFailure));
+                }
+
+                if (PostgresExceptionTranslator.CanTranslate(
+                    original))
+                {
+                    throw PostgresExceptionTranslator.Translate(
+                        original);
+                }
+
+                throw;
+            }
+
+            try
+            {
+                await transaction.CommitAsync(
+                    cancellationToken);
+            }
+            catch (Exception commitFailure)
+            {
+                throw new PersistenceException(
+                    PersistenceErrorCode.TransactionOutcomeUnknown,
+                    "The transaction commit outcome is unknown.",
+                    commitFailure);
+            }
+
+            return result;
+        }
+    }
+}
