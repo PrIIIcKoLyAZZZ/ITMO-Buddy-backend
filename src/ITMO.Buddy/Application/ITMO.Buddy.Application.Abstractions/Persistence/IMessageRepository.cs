@@ -13,6 +13,13 @@ public interface IMessageRepository
         int page,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Общее количество сообщений в диалоге.
+    /// </summary>
+    Task<int> CountHistoryAsync(
+        Guid conversationId,
+        CancellationToken cancellationToken = default);
+
     Task<Message?> GetLatestAsync(
         Guid conversationId,
         CancellationToken cancellationToken = default);
@@ -22,11 +29,12 @@ public interface IMessageRepository
         Guid recipientId,
         CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<Message>> GetUnreadForRecipientAsync(
-        Guid conversationId,
-        Guid recipientId,
-        int take,
-        CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Message>>
+        GetUnreadForRecipientAsync(
+            Guid conversationId,
+            Guid recipientId,
+            int take,
+            CancellationToken cancellationToken = default);
 
     void Add(Message message);
 

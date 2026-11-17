@@ -29,6 +29,14 @@ public interface IReferenceDataRepository
         IReadOnlyCollection<Guid> interestIds,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Поиск интересов для автодополнения.
+    /// </summary>
+    Task<IReadOnlyList<Interest>> SearchInterestsAsync(
+        string? searchText,
+        int take,
+        CancellationToken cancellationToken = default);
+
     void Add(Interest interest);
 
     Task<Skill?> GetSkillByIdAsync(
@@ -41,6 +49,14 @@ public interface IReferenceDataRepository
 
     Task<IReadOnlyList<Skill>> GetSkillsByIdsAsync(
         IReadOnlyCollection<Guid> skillIds,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Поиск навыков для автодополнения.
+    /// </summary>
+    Task<IReadOnlyList<Skill>> SearchSkillsAsync(
+        string? searchText,
+        int take,
         CancellationToken cancellationToken = default);
 
     void Add(Skill skill);

@@ -43,6 +43,17 @@ public sealed class NotificationRepository
             .ToListAsync(cancellationToken);
     }
 
+    public Task<int> CountForRecipientAsync(
+        Guid recipientId,
+        CancellationToken cancellationToken = default)
+    {
+        return _context.Notifications
+            .AsNoTracking()
+            .CountAsync(
+                x => x.RecipientId == recipientId,
+                cancellationToken);
+    }
+
     public Task<int> CountUnreadAsync(
         Guid recipientId,
         CancellationToken cancellationToken = default)
