@@ -24,10 +24,11 @@ public sealed class MessageRepository : IMessageRepository
                 cancellationToken);
     }
 
-    public async Task<IReadOnlyList<Message>> GetHistoryAsync(
-        Guid conversationId,
-        int page,
-        CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<Message>>
+        GetHistoryAsync(
+            Guid conversationId,
+            int page,
+            CancellationToken cancellationToken = default)
     {
         var skip = RepositoryPaging.GetSkip(page);
 
@@ -39,6 +40,17 @@ public sealed class MessageRepository : IMessageRepository
             .Skip(skip)
             .Take(RepositoryPaging.PageSize)
             .ToListAsync(cancellationToken);
+    }
+
+    public Task<int> CountHistoryAsync(
+        Guid conversationId,
+        CancellationToken cancellationToken = default)
+    {
+        return _context.Messages
+            .AsNoTracking()
+            .CountAsync(
+                x => x.ConversationId == conversationId,
+                cancellationToken);
     }
 
     public Task<Message?> GetLatestAsync(

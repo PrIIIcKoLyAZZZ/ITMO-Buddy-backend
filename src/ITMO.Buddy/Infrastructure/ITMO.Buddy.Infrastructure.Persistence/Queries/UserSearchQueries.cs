@@ -52,18 +52,44 @@ public sealed class UserSearchQueries : IUserSearchQueries
             .Distinct()
             .ToArray() ?? Array.Empty<Guid>();
 
-        if (filter.Course is <= 0)
+        var facultyIds = filter.FacultyIds?
+            .Distinct()
+            .ToArray() ?? Array.Empty<Guid>();
+
+        if (filter.FacultyId is Guid facultyId)
+        {
+            facultyIds = facultyIds
+                .Append(facultyId)
+                .Distinct()
+                .ToArray();
+        }
+
+        var courses = filter.Courses?
+            .Distinct()
+            .ToArray() ?? Array.Empty<int>();
+
+        if (filter.Course is int course)
+        {
+            courses = courses
+                .Append(course)
+                .Distinct()
+                .ToArray();
+        }
+
+        if (interestIds.Contains(Guid.Empty) ||
+            skillIds.Contains(Guid.Empty) ||
+            facultyIds.Contains(Guid.Empty))
+        {
+            throw new ArgumentException(
+                "Filter identifiers cannot be empty GUIDs.",
+                nameof(filter));
+        }
+
+        if (courses.Any(x => x <= 0))
         {
             throw new ArgumentOutOfRangeException(
                 nameof(filter),
-                "Course must be positive.");
-        }
-
-        if (filter.FacultyId == Guid.Empty)
-        {
-            throw new ArgumentException(
-                "Faculty identifier cannot be empty.",
-                nameof(filter));
+                "Courses must contain positive numbers.");
         }
 
         var currentUserId = filter.CurrentUserId;
@@ -82,7 +108,8 @@ public sealed class UserSearchQueries : IUserSearchQueries
                     (block.BlockerId == profile.UserId &&
                      block.BlockedUserId == currentUserId)));
 
-        // Text search: name, biography, interests, skills.
+        // Текстовый поиск по имени, описанию,
+        // интересам и навыкам.
 
         if (text is not null)
         {
@@ -115,7 +142,7 @@ public sealed class UserSearchQueries : IUserSearchQueries
                         skill.Name, pattern, "\\")));
         }
 
-        // OR inside goals.
+        // OR внутри выбранных целей.
 
         if (goals.Length > 0)
         {
@@ -137,7 +164,7 @@ public sealed class UserSearchQueries : IUserSearchQueries
                       goal.GoalCategory == GoalCategory.Interests))));
         }
 
-        // OR inside interests.
+        // OR внутри интересов.
 
         if (interestIds.Length > 0)
         {
@@ -146,7 +173,7 @@ public sealed class UserSearchQueries : IUserSearchQueries
                     interestIds.Contains(interest.Id)));
         }
 
-        // OR inside skills.
+        // OR внутри навыков.
 
         if (skillIds.Length > 0)
         {
@@ -155,16 +182,22 @@ public sealed class UserSearchQueries : IUserSearchQueries
                     skillIds.Contains(skill.Id)));
         }
 
-        if (filter.FacultyId is Guid facultyId)
+        // OR внутри факультетов.
+
+        if (facultyIds.Length > 0)
         {
             query = query.Where(profile =>
-                profile.FacultyId == facultyId);
+                profile.FacultyId.HasValue &&
+                facultyIds.Contains(profile.FacultyId.Value));
         }
 
-        if (filter.Course is int course)
+        // OR внутри курсов.
+
+        if (courses.Length > 0)
         {
             query = query.Where(profile =>
-                profile.Course == course);
+                profile.Course.HasValue &&
+                courses.Contains(profile.Course.Value));
         }
 
         var totalCount = await query.CountAsync(

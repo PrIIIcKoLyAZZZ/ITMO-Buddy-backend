@@ -12,9 +12,33 @@ public interface IListingRepository
         Guid responseId,
         CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<ListingResponse>> GetCandidateResponsesAsync(
+    /// <summary>
+    /// Получает отклики конкретного объявления.
+    /// </summary>
+    Task<IReadOnlyList<ListingResponse>>
+        GetListingResponsesAsync(
+            Guid listingId,
+            int page,
+            CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Общее количество откликов объявления.
+    /// </summary>
+    Task<int> CountListingResponsesAsync(
+        Guid listingId,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<ListingResponse>>
+        GetCandidateResponsesAsync(
+            Guid candidateId,
+            int page,
+            CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Общее количество откликов пользователя.
+    /// </summary>
+    Task<int> CountCandidateResponsesAsync(
         Guid candidateId,
-        int page,
         CancellationToken cancellationToken = default);
 
     void Add(Listing listing);

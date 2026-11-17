@@ -1,6 +1,7 @@
 using ITMO.Buddy.Application.Abstractions.Persistence;
 using ITMO.Buddy.Domain.Users;
 using ITMO.Buddy.Infrastructure.Persistence.Context;
+using ITMO.Buddy.Infrastructure.Persistence.Queries;
 using Microsoft.EntityFrameworkCore;
 
 namespace ITMO.Buddy.Infrastructure.Persistence.Repositories;
@@ -8,6 +9,8 @@ namespace ITMO.Buddy.Infrastructure.Persistence.Repositories;
 public sealed class ReferenceDataRepository
     : IReferenceDataRepository
 {
+    private const int MaxSearchLimit = 20;
+
     private readonly BuddyDbContext _context;
 
     public ReferenceDataRepository(BuddyDbContext context)
@@ -96,6 +99,36 @@ public sealed class ReferenceDataRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Interest>>
+        SearchInterestsAsync(
+            string? searchText,
+            int take,
+            CancellationToken cancellationToken = default)
+    {
+        ValidateSearchLimit(take);
+
+        var text = NormalizeSearchText(searchText);
+
+        var query = _context.Interests
+            .AsNoTracking()
+            .AsQueryable();
+
+        if (text is not null)
+        {
+            var pattern = SearchText.ToContainsPattern(text);
+
+            query = query.Where(x =>
+                EF.Functions.ILike(
+                    x.Name, pattern, "\\"));
+        }
+
+        return await query
+            .OrderBy(x => x.Name)
+            .ThenBy(x => x.Id)
+            .Take(take)
+            .ToListAsync(cancellationToken);
+    }
+
     public void Add(Interest interest)
     {
         ArgumentNullException.ThrowIfNull(interest);
@@ -145,6 +178,36 @@ public sealed class ReferenceDataRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Skill>>
+        SearchSkillsAsync(
+            string? searchText,
+            int take,
+            CancellationToken cancellationToken = default)
+    {
+        ValidateSearchLimit(take);
+
+        var text = NormalizeSearchText(searchText);
+
+        var query = _context.Skills
+            .AsNoTracking()
+            .AsQueryable();
+
+        if (text is not null)
+        {
+            var pattern = SearchText.ToContainsPattern(text);
+
+            query = query.Where(x =>
+                EF.Functions.ILike(
+                    x.Name, pattern, "\\"));
+        }
+
+        return await query
+            .OrderBy(x => x.Name)
+            .ThenBy(x => x.Id)
+            .Take(take)
+            .ToListAsync(cancellationToken);
+    }
+
     public void Add(Skill skill)
     {
         ArgumentNullException.ThrowIfNull(skill);
@@ -156,5 +219,35 @@ public sealed class ReferenceDataRepository
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(
             normalizedName);
+    }
+
+    private static void ValidateSearchLimit(int take)
+    {
+        if (take < 1 || take > MaxSearchLimit)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(take),
+                "Search limit must be between 1 and 20.");
+        }
+    }
+
+    private static string? NormalizeSearchText(
+        string? searchText)
+    {
+        var normalized = searchText?.Trim();
+
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return null;
+        }
+
+        if (normalized.Length > SearchText.MaxLength)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(searchText),
+                "Search text cannot exceed 200 characters.");
+        }
+
+        return normalized;
     }
 }

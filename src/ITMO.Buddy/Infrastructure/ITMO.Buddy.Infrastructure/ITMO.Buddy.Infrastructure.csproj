@@ -6,4 +6,9 @@
         <Nullable>enable</Nullable>
     </PropertyGroup>
 
+    <ItemGroup>
+        <ProjectReference Include="../../Domain/ITMO.Buddy.Domain/ITMO.Buddy.Domain.csproj" />
+        <ProjectReference Include="../../Application/ITMO.Buddy.Application.Abstractions/ITMO.Buddy.Application.Abstractions.csproj" />
+    </ItemGroup>
+
 </Project>

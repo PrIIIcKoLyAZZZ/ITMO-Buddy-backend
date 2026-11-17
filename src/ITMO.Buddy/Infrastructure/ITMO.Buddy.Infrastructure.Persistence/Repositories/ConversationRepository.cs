@@ -60,6 +60,18 @@ public sealed class ConversationRepository
             .ToListAsync(cancellationToken);
     }
 
+    public Task<int> CountForUserAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        return _context.Conversations
+            .AsNoTracking()
+            .CountAsync(
+                x => x.FirstUserId == userId ||
+                     x.SecondUserId == userId,
+                cancellationToken);
+    }
+
     public void Add(Conversation conversation)
     {
         ArgumentNullException.ThrowIfNull(conversation);

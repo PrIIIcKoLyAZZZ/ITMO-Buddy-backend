@@ -13,14 +13,22 @@ public interface INotificationRepository
         int page,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Общее количество уведомлений пользователя.
+    /// </summary>
+    Task<int> CountForRecipientAsync(
+        Guid recipientId,
+        CancellationToken cancellationToken = default);
+
     Task<int> CountUnreadAsync(
         Guid recipientId,
         CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<Notification>> GetUnreadForRecipientAsync(
-        Guid recipientId,
-        int take,
-        CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Notification>>
+        GetUnreadForRecipientAsync(
+            Guid recipientId,
+            int take,
+            CancellationToken cancellationToken = default);
 
     void Add(Notification notification);
 
