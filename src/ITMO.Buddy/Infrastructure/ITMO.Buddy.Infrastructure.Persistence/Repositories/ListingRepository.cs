@@ -29,6 +29,14 @@ public sealed class ListingRepository : IListingRepository
         _context.Listings.AsNoTracking().Include(listing => listing.RequiredSkills)
             .SingleOrDefaultAsync(listing => listing.Id == listingId, cancellationToken);
 
+    public Task<Listing?> GetForEditingAsync(Guid listingId, CancellationToken cancellationToken) =>
+        _context.Listings.Include(listing => listing.RequiredSkills)
+            .SingleOrDefaultAsync(listing => listing.Id == listingId, cancellationToken);
+
+    public Task<Listing?> GetForRespondingAsync(Guid listingId, Guid candidateId, CancellationToken cancellationToken) =>
+        _context.Listings.Include(listing => listing.Responses.Where(response => response.CandidateId == candidateId))
+            .SingleOrDefaultAsync(listing => listing.Id == listingId, cancellationToken);
+
     public Task<Guid?> GetAuthorIdAsync(Guid listingId, CancellationToken cancellationToken) =>
         _context.Listings.AsNoTracking().Where(listing => listing.Id == listingId)
             .Select(listing => (Guid?)listing.AuthorId)
@@ -38,7 +46,8 @@ public sealed class ListingRepository : IListingRepository
         Guid responseId,
         CancellationToken cancellationToken = default)
     {
-        return CreateAggregateQuery()
+        return _context.Listings
+            .Include(listing => listing.Responses.Where(response => response.Id == responseId))
             .SingleOrDefaultAsync(
                 x => x.Responses.Any(
                     response => response.Id == responseId),

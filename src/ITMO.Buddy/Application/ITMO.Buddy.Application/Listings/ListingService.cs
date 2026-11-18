@@ -153,7 +153,7 @@ internal sealed class ListingService(
 
     private async Task<Listing> LoadOwnedAsync(Guid listingId, Guid viewerId, CancellationToken cancellationToken)
     {
-        var listing = await listings.GetByIdAsync(listingId, cancellationToken) ?? throw ListingAccess.NotFound();
+        var listing = await listings.GetForEditingAsync(listingId, cancellationToken) ?? throw ListingAccess.NotFound();
         ListingAccess.RequireOwner(listing.AuthorId, viewerId);
         return listing;
     }

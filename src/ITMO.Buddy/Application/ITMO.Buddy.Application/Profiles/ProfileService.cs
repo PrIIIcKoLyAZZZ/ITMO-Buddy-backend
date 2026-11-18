@@ -22,6 +22,7 @@ internal sealed class ProfileService(
     IAccountMaintenanceRepository accounts,
     ITransactionRunner transactions,
     IFileStorage files,
+    OptionalPhotoUrl photos,
     IFileCleanupQueue cleanup,
     IValidator<UpdateProfileRequest> updateValidator,
     IValidator<ProfilePhotoUpload> photoValidator) : IProfileService
@@ -249,9 +250,7 @@ internal sealed class ProfileService(
         var faculty = profile.FacultyId is { } facultyId
             ? await referenceData.GetFacultyByIdAsync(facultyId, cancellationToken)
             : null;
-        var photoUrl = profile.PhotoObjectKey is { } key
-            ? await files.GetReadUrlAsync(key, cancellationToken)
-            : null;
+        var photoUrl = await photos.GetAsync(profile.PhotoObjectKey, cancellationToken);
 
         return ToResponse(profile, faculty, includeContact) with { PhotoUrl = photoUrl };
     }

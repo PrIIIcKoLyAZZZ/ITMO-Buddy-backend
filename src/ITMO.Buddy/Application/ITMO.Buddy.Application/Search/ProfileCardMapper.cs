@@ -1,19 +1,17 @@
 using ITMO.Buddy.Application.Abstractions.Persistence.Queries;
-using ITMO.Buddy.Application.Abstractions.Storage;
+using ITMO.Buddy.Application.Common;
 using ITMO.Buddy.Application.Contracts.Dictionaries;
 using ITMO.Buddy.Application.Contracts.Profiles;
 
 namespace ITMO.Buddy.Application.Search;
 
-internal sealed class ProfileCardMapper(IFileStorage files)
+internal sealed class ProfileCardMapper(OptionalPhotoUrl photos)
 {
     public async Task<ProfileCardResponse> MapAsync(
         UserSearchItem item,
         CancellationToken cancellationToken)
     {
-        var photoUrl = item.PhotoObjectKey is { } key
-            ? await files.GetReadUrlAsync(key, cancellationToken)
-            : null;
+        var photoUrl = await photos.GetAsync(item.PhotoObjectKey, cancellationToken);
 
         return new ProfileCardResponse(
             item.UserId,

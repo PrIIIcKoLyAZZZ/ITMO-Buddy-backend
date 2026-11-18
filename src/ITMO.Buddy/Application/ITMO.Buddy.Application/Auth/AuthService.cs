@@ -14,6 +14,7 @@ namespace ITMO.Buddy.Application.Auth;
 
 internal sealed class AuthService(
     IUserRepository users,
+    IAccountMaintenanceRepository accounts,
     IUserProfileRepository profiles,
     IRefreshTokenRepository refreshTokens,
     ITransactionRunner transactions,
@@ -80,11 +81,22 @@ internal sealed class AuthService(
                 throw InvalidCredentials();
             }
 
-            return await transactions.ExecuteAsync(_ =>
+            return await transactions.ExecuteAsync(async token =>
             {
+                if (!await accounts.LockAsync(user.Id, token))
+                {
+                    throw InvalidCredentials();
+                }
+
+                var current = await users.GetByIdAsync(user.Id, token);
+                if (current is not { IsActive: true } || current.PasswordHash != user.PasswordHash)
+                {
+                    throw InvalidCredentials();
+                }
+
                 var nowUtc = clock.UtcNow;
-                user.UpdateLastActivity(nowUtc);
-                return Task.FromResult(IssueSession(user, nowUtc));
+                current.UpdateLastActivity(nowUtc);
+                return IssueSession(current, nowUtc);
             }, cancellationToken);
         });
 

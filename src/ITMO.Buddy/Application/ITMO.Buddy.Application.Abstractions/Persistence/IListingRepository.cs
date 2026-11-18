@@ -10,6 +10,10 @@ public interface IListingRepository
 
     Task<Listing?> GetDetailsAsync(Guid listingId, CancellationToken cancellationToken);
 
+    Task<Listing?> GetForEditingAsync(Guid listingId, CancellationToken cancellationToken);
+
+    Task<Listing?> GetForRespondingAsync(Guid listingId, Guid candidateId, CancellationToken cancellationToken);
+
     Task<Guid?> GetAuthorIdAsync(Guid listingId, CancellationToken cancellationToken);
 
     Task<Listing?> GetByResponseIdAsync(

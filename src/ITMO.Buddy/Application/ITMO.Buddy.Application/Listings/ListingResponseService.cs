@@ -121,7 +121,7 @@ internal sealed class ListingResponseService(
         {
             return await transactions.ExecuteAsync(async token =>
             {
-                var listing = await listings.GetByIdAsync(listingId, token) ?? throw ListingAccess.NotFound();
+                var listing = await listings.GetForRespondingAsync(listingId, candidateId, token) ?? throw ListingAccess.NotFound();
                 if (candidateId != listing.AuthorId)
                 {
                     await pairLock.AcquireAsync(candidateId, listing.AuthorId, token);

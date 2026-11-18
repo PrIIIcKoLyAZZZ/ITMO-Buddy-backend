@@ -1,6 +1,7 @@
 using FluentValidation;
 using ITMO.Buddy.Application.Abstractions.Persistence;
 using ITMO.Buddy.Application.Abstractions.Services;
+using ITMO.Buddy.Application.Common;
 using ITMO.Buddy.Application.Contracts.Dictionaries;
 using ITMO.Buddy.Application.Errors;
 using ITMO.Buddy.Application.Validation;
@@ -9,6 +10,7 @@ using ITMO.Buddy.Domain.Users;
 namespace ITMO.Buddy.Application.Dictionaries;
 
 internal sealed class DictionaryService(
+    CurrentUserGuard currentUser,
     IReferenceDataRepository referenceData,
     ITransactionRunner transactions,
     IValidator<DictionarySearchRequest> searchValidator,
@@ -47,6 +49,7 @@ internal sealed class DictionaryService(
         CancellationToken cancellationToken = default) =>
         ApplicationOperation.RunAsync(async () =>
         {
+            await currentUser.RequireActiveUserAsync(cancellationToken);
             await createValidator.ValidateRequestAsync(request, cancellationToken);
             var candidate = new Interest(Guid.NewGuid(), request.Name);
             var item = await transactions.ExecuteAsync(
@@ -59,6 +62,7 @@ internal sealed class DictionaryService(
         CancellationToken cancellationToken = default) =>
         ApplicationOperation.RunAsync(async () =>
         {
+            await currentUser.RequireActiveUserAsync(cancellationToken);
             await createValidator.ValidateRequestAsync(request, cancellationToken);
             var candidate = new Skill(Guid.NewGuid(), request.Name);
             var item = await transactions.ExecuteAsync(

@@ -4,6 +4,7 @@ using ITMO.Buddy.Infrastructure.Persistence.Context;
 using ITMO.Buddy.Infrastructure.Persistence.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
+using Npgsql;
 
 namespace ITMO.Buddy.Infrastructure.Persistence.Transactions;
 
@@ -107,6 +108,14 @@ public sealed class BuddyTransactionRunner
             {
                 await transaction.CommitAsync(
                     cancellationToken);
+            }
+            catch (PostgresException rejected) when (rejected.SqlState is
+                PostgresErrorCodes.UniqueViolation or PostgresErrorCodes.ForeignKeyViolation or
+                PostgresErrorCodes.CheckViolation or PostgresErrorCodes.NotNullViolation or
+                PostgresErrorCodes.SerializationFailure or PostgresErrorCodes.DeadlockDetected)
+            {
+                ClearTrackedState();
+                throw PostgresExceptionTranslator.Translate(rejected);
             }
             catch (Exception commitFailure)
             {

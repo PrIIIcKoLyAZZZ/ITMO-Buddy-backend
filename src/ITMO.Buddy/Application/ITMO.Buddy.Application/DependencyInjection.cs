@@ -2,6 +2,7 @@ using FluentValidation;
 using ITMO.Buddy.Application.Abstractions.Profiles;
 using ITMO.Buddy.Application.Abstractions.Recommendations;
 using ITMO.Buddy.Application.Abstractions.Services;
+using ITMO.Buddy.Application.Abstractions.Time;
 using ITMO.Buddy.Application.Auth;
 using ITMO.Buddy.Application.Common;
 using ITMO.Buddy.Application.Dictionaries;
@@ -34,7 +35,9 @@ public static class DependencyInjection
     {
         ArgumentNullException.ThrowIfNull(services);
 
+        services.TryAddSingleton<IDateTimeProvider, SystemDateTimeProvider>();
         services.TryAddScoped<CurrentUserGuard>();
+        services.TryAddScoped<OptionalPhotoUrl>();
         services.TryAddScoped<IAuthService, AuthService>();
         services.TryAddScoped<IProfileService, ProfileService>();
         services.TryAddScoped<IDictionaryService, DictionaryService>();
