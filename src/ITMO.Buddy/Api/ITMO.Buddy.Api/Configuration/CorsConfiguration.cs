@@ -17,7 +17,7 @@ internal static class CorsConfiguration
             .AllowCredentials()));
     }
 
-    private static bool IsHttpOrigin(string origin) =>
+    internal static bool IsHttpOrigin(string origin) =>
         Uri.TryCreate(origin, UriKind.Absolute, out var uri) &&
         uri.Scheme is "http" or "https" &&
         uri.HostNameType is UriHostNameType.Dns or UriHostNameType.IPv4 or UriHostNameType.IPv6 &&

@@ -15,6 +15,13 @@ internal sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) :
             return true;
         }
 
+        if (exception is BadHttpRequestException invalidRequest &&
+            ApiErrorResponses.DescribeClientError(invalidRequest.StatusCode) is { } clientError)
+        {
+            await ApiErrorResponses.WriteAsync(context, clientError, invalidRequest.StatusCode);
+            return true;
+        }
+
         var error = exception is OperationCanceledException
             ? ApiErrorResponses.InternalError
             : ApplicationErrorMapper.Map(exception);

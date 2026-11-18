@@ -20,7 +20,12 @@ builder.Services.AddApplication();
 builder.Services.AddPersistence(builder.Configuration);
 builder.Services.AddInfrastructure(builder.Configuration);
 
-builder.Services.AddControllers();
+builder.Services.AddControllers().ConfigureApiBehaviorOptions(options =>
+{
+    options.InvalidModelStateResponseFactory = ApiErrorResponses.InvalidModelState;
+    options.SuppressMapClientErrors = true;
+});
+builder.Services.AddScoped<AuthOriginGuard>();
 builder.Services.AddApiAuthentication();
 builder.Services.AddApiAuthorization();
 builder.Services.AddHttpContextAccessor();
@@ -36,6 +41,7 @@ app.UseExceptionHandler(new ExceptionHandlerOptions
 {
     ExceptionHandler = context => ApiErrorResponses.WriteAsync(context, ApiErrorResponses.InternalError)
 });
+app.UseStatusCodePages(ApiErrorResponses.WriteEmptyClientErrorAsync);
 app.UseRouting();
 app.UseCors();
 app.UseAuthentication();
