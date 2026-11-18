@@ -28,6 +28,8 @@ public static class ApplicationErrorMapper
     private static ErrorResponse MapDomain(DomainException error) =>
         error.Code switch
         {
+            "listing.participants.inconsistent" =>
+                new(error.Code, "The listing participant count could not be updated.", ErrorCategories.InternalError),
             "listing.response.not_found" =>
                 new(error.Code, "Listing response was not found.", ErrorCategories.NotFound),
             "conversation.user.not_participant" or "message.read.by_sender" or "user.status.not_active" =>

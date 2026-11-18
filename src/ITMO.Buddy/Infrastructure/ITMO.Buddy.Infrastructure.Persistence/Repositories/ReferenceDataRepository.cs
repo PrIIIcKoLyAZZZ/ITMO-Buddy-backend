@@ -129,6 +129,19 @@ public sealed class ReferenceDataRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<Interest> GetOrCreateAsync(Interest candidate, CancellationToken cancellationToken)
+    {
+        await _context.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO interests (id, name, normalized_name)
+            VALUES ({candidate.Id}, {candidate.Name}, {candidate.NormalizedName})
+            ON CONFLICT (normalized_name) DO NOTHING
+            """, cancellationToken);
+
+        return await _context.Interests.SingleAsync(
+            item => item.NormalizedName == candidate.NormalizedName,
+            cancellationToken);
+    }
+
     public void Add(Interest interest)
     {
         ArgumentNullException.ThrowIfNull(interest);
@@ -206,6 +219,19 @@ public sealed class ReferenceDataRepository
             .ThenBy(x => x.Id)
             .Take(take)
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<Skill> GetOrCreateAsync(Skill candidate, CancellationToken cancellationToken)
+    {
+        await _context.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO skills (id, name, normalized_name)
+            VALUES ({candidate.Id}, {candidate.Name}, {candidate.NormalizedName})
+            ON CONFLICT (normalized_name) DO NOTHING
+            """, cancellationToken);
+
+        return await _context.Skills.SingleAsync(
+            item => item.NormalizedName == candidate.NormalizedName,
+            cancellationToken);
     }
 
     public void Add(Skill skill)

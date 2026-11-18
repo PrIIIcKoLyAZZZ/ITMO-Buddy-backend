@@ -1,6 +1,7 @@
 using System.Data;
 using ITMO.Buddy.Application.Abstractions.Persistence;
 using ITMO.Buddy.Infrastructure.Persistence.Context;
+using ITMO.Buddy.Infrastructure.Persistence.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 
@@ -11,13 +12,16 @@ public sealed class BuddyTransactionRunner
 {
     private readonly BuddyDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ProfileGoalsStore _goalsStore;
 
     public BuddyTransactionRunner(
         BuddyDbContext context,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ProfileGoalsStore goalsStore)
     {
         _context = context;
         _unitOfWork = unitOfWork;
+        _goalsStore = goalsStore;
     }
 
     public async Task ExecuteAsync(
@@ -84,6 +88,10 @@ public sealed class BuddyTransactionRunner
                             original,
                             rollbackFailure));
                 }
+                finally
+                {
+                    ClearTrackedState();
+                }
 
                 if (PostgresExceptionTranslator.CanTranslate(
                     original))
@@ -102,6 +110,7 @@ public sealed class BuddyTransactionRunner
             }
             catch (Exception commitFailure)
             {
+                ClearTrackedState();
                 throw new PersistenceException(
                     PersistenceErrorCode.TransactionOutcomeUnknown,
                     "The transaction commit outcome is unknown.",
@@ -110,5 +119,11 @@ public sealed class BuddyTransactionRunner
 
             return result;
         }
+    }
+
+    private void ClearTrackedState()
+    {
+        _context.ChangeTracker.Clear();
+        _goalsStore.ClearSnapshots();
     }
 }

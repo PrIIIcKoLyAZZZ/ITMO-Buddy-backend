@@ -327,6 +327,18 @@ public sealed class Listing : Entity
         UpdatedAtUtc = timestamp;
     }
 
+    public void RemoveAcceptedParticipant()
+    {
+        if (AcceptedParticipantsCount == 0)
+        {
+            throw new DomainException(
+                "listing.participants.inconsistent",
+                "The listing has no accepted participants to remove.");
+        }
+
+        AcceptedParticipantsCount--;
+    }
+
     public void RejectResponse(
         Guid responseId,
         DateTimeOffset decidedAtUtc)

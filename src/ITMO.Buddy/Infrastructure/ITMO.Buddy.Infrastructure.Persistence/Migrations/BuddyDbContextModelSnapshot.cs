@@ -576,6 +576,12 @@ namespace ITMO.Buddy.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("user_id");
 
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ExpiresAtUtc")
@@ -788,6 +794,23 @@ namespace ITMO.Buddy.Infrastructure.Persistence.Migrations
                         {
                             t.HasCheckConstraint("ck_user_profiles_course", "course IS NULL OR course > 0");
                         });
+                });
+
+            modelBuilder.Entity("ITMO.Buddy.Infrastructure.Persistence.Models.FileCleanupEntry", b =>
+                {
+                    b.Property<string>("ObjectKey")
+                        .HasColumnType("text")
+                        .HasColumnName("object_key");
+
+                    b.Property<DateTimeOffset>("EnqueuedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("enqueued_at_utc")
+                        .HasDefaultValueSql("now()");
+
+                    b.HasKey("ObjectKey");
+
+                    b.ToTable("file_cleanup_queue", (string)null);
                 });
 
             modelBuilder.Entity("ITMO.Buddy.Infrastructure.Persistence.Models.ProfileGoalRow", b =>

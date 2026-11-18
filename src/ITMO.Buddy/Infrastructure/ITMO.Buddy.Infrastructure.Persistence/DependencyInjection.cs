@@ -43,6 +43,9 @@ public static class DependencyInjection
 
         // Repositories
 
+        services.AddScoped<IAccountMaintenanceRepository, AccountMaintenanceRepository>();
+        services.AddScoped<IFileCleanupQueue, FileCleanupQueue>();
+
         services.AddScoped<
             IUserRepository,
             UserRepository>();

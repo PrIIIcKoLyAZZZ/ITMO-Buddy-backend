@@ -1,5 +1,10 @@
 using FluentValidation;
+using ITMO.Buddy.Application.Abstractions.Profiles;
+using ITMO.Buddy.Application.Abstractions.Services;
+using ITMO.Buddy.Application.Auth;
 using ITMO.Buddy.Application.Common;
+using ITMO.Buddy.Application.Dictionaries;
+using ITMO.Buddy.Application.Profiles;
 using ITMO.Buddy.Application.Contracts.Auth;
 using ITMO.Buddy.Application.Contracts.Common;
 using ITMO.Buddy.Application.Contracts.Conversations;
@@ -23,6 +28,11 @@ public static class DependencyInjection
         ArgumentNullException.ThrowIfNull(services);
 
         services.TryAddScoped<CurrentUserGuard>();
+        services.TryAddScoped<IAuthService, AuthService>();
+        services.TryAddScoped<IProfileService, ProfileService>();
+        services.TryAddScoped<IDictionaryService, DictionaryService>();
+
+        services.TryAddScoped<IValidator<ProfilePhotoUpload>, ProfilePhotoValidator>();
 
         services.TryAddScoped<IValidator<RegisterRequest>, RegisterRequestValidator>();
         services.TryAddScoped<IValidator<LoginRequest>, LoginRequestValidator>();

@@ -6,7 +6,7 @@ public sealed class AppException : Exception
 {
     internal ErrorResponse Error { get; }
 
-    private AppException(ErrorResponse error)
+    internal AppException(ErrorResponse error)
         : base(error.Message)
     {
         Error = error;
