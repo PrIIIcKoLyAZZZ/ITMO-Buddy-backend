@@ -1,5 +1,6 @@
 using ITMO.Buddy.Application.Abstractions.Persistence.Queries;
 using ITMO.Buddy.Domain.Enums;
+using ITMO.Buddy.Domain.Users;
 using ITMO.Buddy.Infrastructure.Persistence.Context;
 using ITMO.Buddy.Infrastructure.Persistence.Models;
 using ITMO.Buddy.Infrastructure.Persistence.Repositories;
@@ -92,21 +93,7 @@ public sealed class UserSearchQueries : IUserSearchQueries
                 "Courses must contain positive numbers.");
         }
 
-        var currentUserId = filter.CurrentUserId;
-
-        var query = _context.UserProfiles
-            .AsNoTracking()
-            .Where(profile =>
-                profile.IsVisible &&
-                profile.UserId != currentUserId &&
-                _context.Users.Any(user =>
-                    user.Id == profile.UserId &&
-                    user.Status == UserStatus.Active) &&
-                !_context.UserBlocks.Any(block =>
-                    (block.BlockerId == currentUserId &&
-                     block.BlockedUserId == profile.UserId) ||
-                    (block.BlockerId == profile.UserId &&
-                     block.BlockedUserId == currentUserId)));
+        var query = DiscoverableProfiles.ForViewer(_context, filter.CurrentUserId);
 
         // Текстовый поиск по имени, описанию,
         // интересам и навыкам.
@@ -203,10 +190,30 @@ public sealed class UserSearchQueries : IUserSearchQueries
         var totalCount = await query.CountAsync(
             cancellationToken);
 
-        var items = await query
+        var items = await LoadCardsAsync(query
             .OrderBy(profile => profile.Id)
             .Skip(skip)
-            .Take(RepositoryPaging.PageSize)
+            .Take(RepositoryPaging.PageSize), cancellationToken);
+
+        return new QueryPage<UserSearchItem>(
+            items,
+            filter.Page,
+            RepositoryPaging.PageSize,
+            totalCount);
+    }
+
+    public Task<IReadOnlyList<UserSearchItem>> GetCardsAsync(
+        Guid currentUserId,
+        IReadOnlyCollection<Guid> userIds,
+        CancellationToken cancellationToken = default) =>
+        LoadCardsAsync(DiscoverableProfiles.ForViewer(_context, currentUserId)
+            .Where(profile => userIds.Contains(profile.UserId)), cancellationToken);
+
+    private async Task<IReadOnlyList<UserSearchItem>> LoadCardsAsync(
+        IQueryable<UserProfile> query,
+        CancellationToken cancellationToken)
+    {
+        var items = await query
             .Select(profile => new UserSearchItem(
                 profile.UserId,
                 profile.Id,
@@ -214,13 +221,53 @@ public sealed class UserSearchQueries : IUserSearchQueries
                 profile.LastName,
                 profile.AboutMe,
                 profile.FacultyId,
-                profile.Course))
-            .ToListAsync(cancellationToken);
+                profile.Course)
+            {
+                PhotoObjectKey = profile.PhotoObjectKey,
+                FacultyName = _context.Faculties
+                    .Where(faculty => faculty.Id == profile.FacultyId)
+                    .Select(faculty => faculty.Name)
+                    .FirstOrDefault()
+            })
+            .ToArrayAsync(cancellationToken);
 
-        return new QueryPage<UserSearchItem>(
-            items,
-            filter.Page,
-            RepositoryPaging.PageSize,
-            totalCount);
+        if (items.Length == 0)
+        {
+            return items;
+        }
+
+        var profileIds = items.Select(item => item.ProfileId).ToArray();
+        var goalRows = await _context.Set<ProfileGoalRow>()
+            .AsNoTracking()
+            .Where(goal => profileIds.Contains(goal.ProfileId))
+            .OrderBy(goal => goal.GoalCategory)
+            .Select(goal => new { goal.ProfileId, goal.GoalCategory })
+            .ToArrayAsync(cancellationToken);
+
+        var interestRows = await _context.UserProfiles
+            .AsNoTracking()
+            .Where(profile => profileIds.Contains(profile.Id))
+            .SelectMany(profile => profile.Interests
+                .OrderBy(interest => interest.NormalizedName)
+                .ThenBy(interest => interest.Id)
+                .Take(5)
+                .Select(interest => new
+                {
+                    ProfileId = profile.Id,
+                    interest.Id,
+                    interest.Name,
+                    interest.NormalizedName
+                }))
+            .OrderBy(interest => interest.NormalizedName)
+            .ThenBy(interest => interest.Id)
+            .ToArrayAsync(cancellationToken);
+
+        var goals = goalRows.ToLookup(row => row.ProfileId, row => row.GoalCategory);
+        var interests = interestRows.ToLookup(row => row.ProfileId, row => new UserSearchInterest(row.Id, row.Name));
+        return items.Select(item => item with
+        {
+            Goals = goals[item.ProfileId].ToArray(),
+            Interests = interests[item.ProfileId].ToArray()
+        }).ToArray();
     }
 }

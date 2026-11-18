@@ -72,11 +72,27 @@ public sealed record UserSearchItem(
     string? LastName,
     string? AboutMe,
     Guid? FacultyId,
-    int? Course);
+    int? Course)
+{
+    public string? PhotoObjectKey { get; init; }
+
+    public string? FacultyName { get; init; }
+
+    public IReadOnlyList<GoalCategory> Goals { get; init; } = Array.Empty<GoalCategory>();
+
+    public IReadOnlyList<UserSearchInterest> Interests { get; init; } = Array.Empty<UserSearchInterest>();
+}
+
+public sealed record UserSearchInterest(Guid Id, string Name);
 
 public interface IUserSearchQueries
 {
     Task<QueryPage<UserSearchItem>> SearchAsync(
         UserSearchFilter filter,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<UserSearchItem>> GetCardsAsync(
+        Guid currentUserId,
+        IReadOnlyCollection<Guid> userIds,
         CancellationToken cancellationToken = default);
 }

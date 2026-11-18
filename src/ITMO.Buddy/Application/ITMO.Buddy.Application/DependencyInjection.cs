@@ -1,5 +1,6 @@
 using FluentValidation;
 using ITMO.Buddy.Application.Abstractions.Profiles;
+using ITMO.Buddy.Application.Abstractions.Recommendations;
 using ITMO.Buddy.Application.Abstractions.Services;
 using ITMO.Buddy.Application.Auth;
 using ITMO.Buddy.Application.Common;
@@ -15,6 +16,8 @@ using ITMO.Buddy.Application.Contracts.Profiles;
 using ITMO.Buddy.Application.Contracts.Recommendations;
 using ITMO.Buddy.Application.Contracts.Responses;
 using ITMO.Buddy.Application.Contracts.Search;
+using ITMO.Buddy.Application.Recommendations;
+using ITMO.Buddy.Application.Search;
 using ITMO.Buddy.Application.Validation;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -31,6 +34,18 @@ public static class DependencyInjection
         services.TryAddScoped<IAuthService, AuthService>();
         services.TryAddScoped<IProfileService, ProfileService>();
         services.TryAddScoped<IDictionaryService, DictionaryService>();
+        services.TryAddScoped<IUserSearchService, UserSearchService>();
+        services.TryAddScoped<IRecommendationService, RecommendationService>();
+        services.TryAddScoped<ProfileCardMapper>();
+        services.TryAddScoped<RecommendationScorer>();
+        services.TryAddSingleton<IRecommendationSkipStore, MemoryRecommendationSkipStore>();
+
+        services.AddOptions<RecommendationOptions>()
+            .Validate(options => options.HasValidWeights(),
+                "Recommendation weights must be finite, nonnegative and sum to 1.")
+            .Validate(options => options.SkipDuration > TimeSpan.Zero,
+                "Recommendation skip duration must be positive.")
+            .ValidateOnStart();
 
         services.TryAddScoped<IValidator<ProfilePhotoUpload>, ProfilePhotoValidator>();
 
