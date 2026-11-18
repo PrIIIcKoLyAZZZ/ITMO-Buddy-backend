@@ -7,6 +7,11 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="FluentValidation" />
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    </ItemGroup>
+
+    <ItemGroup>
         <ProjectReference Include="../../Domain/ITMO.Buddy.Domain/ITMO.Buddy.Domain.csproj" />
         <ProjectReference Include="../ITMO.Buddy.Application.Contracts/ITMO.Buddy.Application.Contracts.csproj" />
         <ProjectReference Include="../ITMO.Buddy.Application.Abstractions/ITMO.Buddy.Application.Abstractions.csproj" />
