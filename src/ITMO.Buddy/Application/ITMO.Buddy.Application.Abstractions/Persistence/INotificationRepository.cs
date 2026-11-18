@@ -33,10 +33,12 @@ public interface INotificationRepository
     Task<int> CountOwnedAsync(
         Guid recipientId, IReadOnlyCollection<Guid> notificationIds, CancellationToken cancellationToken);
 
+    /// <summary>Marks selected notifications and their incoming messages in the caller's transaction.</summary>
     Task<int> MarkReadAsync(
         Guid recipientId, IReadOnlyCollection<Guid> notificationIds,
         DateTimeOffset readAtUtc, CancellationToken cancellationToken);
 
+    /// <summary>Marks all notifications and their incoming messages in the caller's transaction.</summary>
     Task<int> MarkAllReadAsync(
         Guid recipientId, DateTimeOffset readAtUtc, CancellationToken cancellationToken);
 

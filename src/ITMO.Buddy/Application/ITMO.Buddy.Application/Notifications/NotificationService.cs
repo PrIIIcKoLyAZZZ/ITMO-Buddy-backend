@@ -13,6 +13,7 @@ namespace ITMO.Buddy.Application.Notifications;
 internal sealed class NotificationService(
     CurrentUserGuard currentUser,
     INotificationRepository notifications,
+    IUserPairLock pairLock,
     ITransactionRunner transactions,
     IDateTimeProvider clock,
     IValidator<PaginationRequest> paginationValidator,
@@ -54,32 +55,30 @@ internal sealed class NotificationService(
             await markReadValidator.ValidateRequestAsync(request, cancellationToken);
             var ids = request.NotificationIds!;
 
-            var changed = await transactions.ExecuteAsync(async token =>
+            await transactions.ExecuteAsync(async token =>
             {
+                await pairLock.AcquireReadReceiptsAsync(user.Id, token);
                 if (await notifications.CountOwnedAsync(user.Id, ids, token) != ids.Count)
                 {
                     throw AppException.NotFound("notification.not_found", "One or more notifications were not found.");
                 }
 
-                return await notifications.MarkReadAsync(user.Id, ids, clock.UtcNow, token);
+                await notifications.MarkReadAsync(user.Id, ids, clock.UtcNow, token);
             }, cancellationToken);
 
-            if (changed > 0)
-            {
-                await unreadDelivery.PublishAsync(user.Id, cancellationToken);
-            }
+            await unreadDelivery.PublishAsync(user.Id, cancellationToken);
         });
 
     public Task MarkAllAsReadAsync(CancellationToken cancellationToken = default) =>
         ApplicationOperation.RunAsync(async () =>
         {
             var user = await currentUser.RequireActiveUserAsync(cancellationToken);
-            var changed = await transactions.ExecuteAsync(
-                token => notifications.MarkAllReadAsync(user.Id, clock.UtcNow, token), cancellationToken);
-
-            if (changed > 0)
+            await transactions.ExecuteAsync(async token =>
             {
-                await unreadDelivery.PublishAsync(user.Id, cancellationToken);
-            }
+                await pairLock.AcquireReadReceiptsAsync(user.Id, token);
+                await notifications.MarkAllReadAsync(user.Id, clock.UtcNow, token);
+            }, cancellationToken);
+
+            await unreadDelivery.PublishAsync(user.Id, cancellationToken);
         });
 }

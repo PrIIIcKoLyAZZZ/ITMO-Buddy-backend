@@ -94,12 +94,16 @@ public sealed class NotificationRepository
     public Task<int> MarkReadAsync(
         Guid recipientId, IReadOnlyCollection<Guid> notificationIds,
         DateTimeOffset readAtUtc, CancellationToken cancellationToken) =>
-        MarkReadAsync(UnreadFor(recipientId).Where(notification => notificationIds.Contains(notification.Id)),
+        MarkWithLinkedMessagesAsync(recipientId,
+            _context.Notifications.Where(notification =>
+                notification.RecipientId == recipientId && notificationIds.Contains(notification.Id)),
             readAtUtc, cancellationToken);
 
     public Task<int> MarkAllReadAsync(
         Guid recipientId, DateTimeOffset readAtUtc, CancellationToken cancellationToken) =>
-        MarkReadAsync(UnreadFor(recipientId), readAtUtc, cancellationToken);
+        MarkWithLinkedMessagesAsync(recipientId,
+            _context.Notifications.Where(notification => notification.RecipientId == recipientId),
+            readAtUtc, cancellationToken);
 
     public Task<int> MarkMessageNotificationsReadAsync(
         Guid recipientId, IReadOnlyCollection<Guid> messageIds,
@@ -107,6 +111,38 @@ public sealed class NotificationRepository
         MarkReadAsync(UnreadFor(recipientId).Where(notification =>
                 notification.Type == NotificationType.MessageReceived && messageIds.Contains(notification.RelatedEntityId)),
             readAtUtc, cancellationToken);
+
+    private async Task<int> MarkWithLinkedMessagesAsync(
+        Guid recipientId, IQueryable<Notification> selected, DateTimeOffset readAtUtc,
+        CancellationToken cancellationToken)
+    {
+        if (_context.Database.CurrentTransaction is null)
+        {
+            throw new InvalidOperationException("Read receipt synchronization requires an active transaction.");
+        }
+
+        // Update notifications before messages, in the same order as reading conversation history.
+        var changed = await MarkReadAsync(selected.Where(notification => notification.ReadAtUtc == null),
+            readAtUtc, cancellationToken);
+
+        // Include already-read notifications to repair out-of-sync receipts from earlier versions.
+        // The read-state filter excludes newly inserted unread notifications from the second statement.
+        var readMessageNotifications = selected.Where(notification =>
+            notification.Type == NotificationType.MessageReceived && notification.ReadAtUtc != null);
+
+        await _context.Messages.Where(message =>
+                message.ReadAtUtc == null &&
+                message.SenderId != recipientId &&
+                readMessageNotifications.Any(notification => notification.RelatedEntityId == message.Id) &&
+                _context.Conversations.Any(conversation =>
+                    conversation.Id == message.ConversationId &&
+                    ((conversation.FirstUserId == recipientId && conversation.SecondUserId == message.SenderId) ||
+                     (conversation.SecondUserId == recipientId && conversation.FirstUserId == message.SenderId))))
+            .ExecuteUpdateAsync(setters => setters.SetProperty(message => message.ReadAtUtc,
+                message => message.SentAtUtc > readAtUtc ? message.SentAtUtc : readAtUtc), cancellationToken);
+
+        return changed;
+    }
 
     private IQueryable<Notification> UnreadFor(Guid recipientId) =>
         _context.Notifications.Where(notification =>

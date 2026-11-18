@@ -71,19 +71,19 @@ internal sealed class ConversationService(
             var saved = await transactions.ExecuteAsync(async token =>
             {
                 var (conversation, otherUserId) = await LockAvailableConversationAsync(conversationId, userId, token);
+                await pairLock.AcquireReadReceiptsAsync(userId, token);
                 var history = await messages.GetHistoryForReadingAsync(conversation.Id, pagination.Page, token);
                 var total = await messages.CountHistoryAsync(conversation.Id, token);
                 var now = clock.UtcNow;
 
-                var receivedIds = new List<Guid>(history.Count);
-                foreach (var message in history)
-                {
-                    if (message.SenderId != otherUserId)
-                    {
-                        continue;
-                    }
+                var received = history.Where(message => message.SenderId == otherUserId).ToArray();
+                var changed = received.Length == 0
+                    ? 0
+                    : await notifications.MarkMessageNotificationsReadAsync(
+                        userId, received.Select(message => message.Id).ToArray(), now, token);
 
-                    receivedIds.Add(message.Id);
+                foreach (var message in received)
+                {
                     if (message.IsUnreadFor(userId, conversation))
                     {
                         var readAt = now < message.SentAtUtc ? message.SentAtUtc : now;
@@ -91,9 +91,6 @@ internal sealed class ConversationService(
                     }
                 }
 
-                var changed = receivedIds.Count == 0
-                    ? 0
-                    : await notifications.MarkMessageNotificationsReadAsync(userId, receivedIds, now, token);
                 var items = history.Select(ToResponse).ToArray();
                 return (Page: new PagedResult<MessageResponse>(items, pagination.Page, pagination.PageSize, total),
                     NotificationsChanged: changed > 0);
