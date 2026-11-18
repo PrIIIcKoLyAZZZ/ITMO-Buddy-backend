@@ -219,13 +219,19 @@ internal sealed class ProfileService(
             {
                 if (await cleanup.TryTakeAsync(key, token))
                 {
+                    if (await cleanup.HasProfileReferenceAsync(key, token))
+                    {
+                        // Leave the intent intact. Returning normally would commit the claim.
+                        throw new InvalidOperationException("The photo is still referenced by a profile.");
+                    }
+
                     await files.DeleteAsync(key, token);
                 }
             }, cancellationToken);
         }
         catch (Exception)
         {
-            // A failed deletion rolls back the claim. The durable entry can be processed again.
+            // The fast path is best-effort. A rolled-back claim can be processed again.
         }
     }
 

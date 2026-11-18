@@ -10,4 +10,19 @@ public interface IFileCleanupQueue
     /// A rollback restores the entry.
     /// </summary>
     Task<bool> TryTakeAsync(string objectKey, CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<FileCleanupCandidate>> GetCandidatesAsync(
+        DateTimeOffset enqueuedNoLaterThanUtc,
+        FileCleanupCandidate? after,
+        int limit,
+        CancellationToken cancellationToken);
+
+    /// <summary>Claims the observed queue entry in the caller's transaction.</summary>
+    Task<bool> TryTakeAsync(FileCleanupCandidate candidate, CancellationToken cancellationToken);
+
+    Task<bool> HasProfileReferenceAsync(string objectKey, CancellationToken cancellationToken);
+
+    Task<int> EnqueueUnreferencedAsync(
+        IReadOnlyCollection<string> objectKeys,
+        CancellationToken cancellationToken);
 }
