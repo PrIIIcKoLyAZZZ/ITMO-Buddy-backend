@@ -8,6 +8,8 @@
 
     <ItemGroup>
         <PackageReference Include="FluentValidation" />
+        <PackageReference Include="Hjg.Pngcs" />
+        <PackageReference Include="JpegLibrary" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
     </ItemGroup>
 

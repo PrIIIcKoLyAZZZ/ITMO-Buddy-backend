@@ -80,9 +80,12 @@ internal sealed class AuthService(
                 throw InvalidCredentials();
             }
 
-            return await transactions.ExecuteAsync(
-                _ => Task.FromResult(IssueSession(user, clock.UtcNow)),
-                cancellationToken);
+            return await transactions.ExecuteAsync(_ =>
+            {
+                var nowUtc = clock.UtcNow;
+                user.UpdateLastActivity(nowUtc);
+                return Task.FromResult(IssueSession(user, nowUtc));
+            }, cancellationToken);
         });
 
     public Task<AuthSessionResult> RefreshAsync(

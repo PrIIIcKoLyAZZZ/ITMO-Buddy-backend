@@ -327,8 +327,10 @@ public sealed class Listing : Entity
         UpdatedAtUtc = timestamp;
     }
 
-    public void RemoveAcceptedParticipant()
+    public void RemoveAcceptedParticipant(DateTimeOffset updatedAtUtc)
     {
+        var timestamp = RequireOperationTime(updatedAtUtc);
+
         if (AcceptedParticipantsCount == 0)
         {
             throw new DomainException(
@@ -337,6 +339,7 @@ public sealed class Listing : Entity
         }
 
         AcceptedParticipantsCount--;
+        UpdatedAtUtc = timestamp;
     }
 
     public void RejectResponse(

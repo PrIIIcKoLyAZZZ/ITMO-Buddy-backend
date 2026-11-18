@@ -1,11 +1,14 @@
 using ITMO.Buddy.Application.Abstractions.Persistence;
+using ITMO.Buddy.Application.Abstractions.Time;
 using ITMO.Buddy.Domain.Enums;
 using ITMO.Buddy.Infrastructure.Persistence.Context;
 using Microsoft.EntityFrameworkCore;
 
 namespace ITMO.Buddy.Infrastructure.Persistence.Repositories;
 
-internal sealed class AccountMaintenanceRepository(BuddyDbContext context) : IAccountMaintenanceRepository
+internal sealed class AccountMaintenanceRepository(
+    BuddyDbContext context,
+    IDateTimeProvider clock) : IAccountMaintenanceRepository
 {
     public async Task<bool> LockAsync(Guid userId, CancellationToken cancellationToken)
     {
@@ -50,9 +53,10 @@ internal sealed class AccountMaintenanceRepository(BuddyDbContext context) : IAc
             .Where(listing => listing.AuthorId != userId && responses.Any(response =>
                 response.ListingId == listing.Id && response.Status == ListingResponseStatus.Accepted))
             .ToListAsync(cancellationToken);
+        var nowUtc = clock.UtcNow;
         foreach (var listing in affectedListings)
         {
-            listing.RemoveAcceptedParticipant();
+            listing.RemoveAcceptedParticipant(nowUtc);
         }
 
         // Notifications reference entities polymorphically and have no cascading FK to them.

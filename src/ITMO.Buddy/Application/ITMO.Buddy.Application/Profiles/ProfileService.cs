@@ -68,16 +68,15 @@ internal sealed class ProfileService(
             var userId = currentUser.RequireUserId();
             await updateValidator.ValidateRequestAsync(request, cancellationToken);
 
-            return await transactions.ExecuteAsync(async token =>
+            var saved = await transactions.ExecuteAsync(async token =>
             {
                 await LockActiveAccountAsync(userId, token);
                 var profile = await GetRequiredProfileAsync(userId, token);
 
-                if (request.FacultyId is { } facultyId &&
-                    await referenceData.GetFacultyByIdAsync(facultyId, token) is null)
-                {
-                    throw AppException.Validation("profile.faculty_not_found", "The selected faculty does not exist.");
-                }
+                var faculty = request.FacultyId is { } facultyId
+                    ? await referenceData.GetFacultyByIdAsync(facultyId, token)
+                        ?? throw AppException.Validation("profile.faculty_not_found", "The selected faculty does not exist.")
+                    : null;
 
                 var interests = await referenceData.GetInterestsByIdsAsync(request.InterestIds, token);
                 if (interests.Count != request.InterestIds.Count)
@@ -100,8 +99,25 @@ internal sealed class ProfileService(
                 profile.SetGoals(request.Goals.Select(ContractEnum<GoalCategory>.Parse));
                 ReplaceTags(profile, interests, skills);
 
-                return await ToResponseAsync(profile, includeContact: true, token);
+                return (Profile: profile, Faculty: faculty);
             }, cancellationToken);
+
+            var response = ToResponse(saved.Profile, saved.Faculty, includeContact: true);
+            if (saved.Profile.PhotoObjectKey is not { } key || cancellationToken.IsCancellationRequested)
+            {
+                return response;
+            }
+
+            try
+            {
+                var photoUrl = await files.GetReadUrlAsync(key, cancellationToken);
+                return response with { PhotoUrl = photoUrl };
+            }
+            catch (Exception)
+            {
+                // The profile is committed. A photo URL can be obtained on a subsequent read.
+                return response;
+            }
         });
 
     public Task<UploadPhotoResponse> UploadMyPhotoAsync(
@@ -113,7 +129,7 @@ internal sealed class ProfileService(
             await photoValidator.ValidateRequestAsync(upload, cancellationToken);
 
             using var content = await ProfilePhoto.ReadAsync(upload, cancellationToken);
-            var (extension, contentType) = ProfilePhoto.DetectFormat(content);
+            var (extension, contentType) = ProfilePhoto.DetectFormat(content, cancellationToken);
             var fileName = $"{Guid.NewGuid():N}.{extension}";
             var key = $"profiles/{fileName}";
 
@@ -237,12 +253,16 @@ internal sealed class ProfileService(
             ? await files.GetReadUrlAsync(key, cancellationToken)
             : null;
 
-        return new ProfileResponse(
+        return ToResponse(profile, faculty, includeContact) with { PhotoUrl = photoUrl };
+    }
+
+    private static ProfileResponse ToResponse(UserProfile profile, Faculty? faculty, bool includeContact) =>
+        new(
             profile.Id,
             profile.UserId,
             profile.FirstName,
             profile.LastName,
-            photoUrl,
+            null,
             faculty is null ? null : new DictionaryItemResponse(faculty.Id, faculty.Name),
             profile.Course,
             profile.AboutMe,
@@ -252,7 +272,6 @@ internal sealed class ProfileService(
             profile.Skills.Select(item => new DictionaryItemResponse(item.Id, item.Name)).ToArray(),
             profile.IsVisible,
             profile.IsComplete);
-    }
 
     private static void ReplaceTags(UserProfile profile, IReadOnlyList<Interest> interests, IReadOnlyList<Skill> skills)
     {
