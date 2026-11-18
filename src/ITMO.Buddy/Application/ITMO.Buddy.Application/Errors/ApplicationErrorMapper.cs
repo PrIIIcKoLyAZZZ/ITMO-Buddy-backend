@@ -37,6 +37,7 @@ public static class ApplicationErrorMapper
             "listing.closed" or "listing.participants.below_accepted" or
                 "listing.participants.full" or "listing.response.duplicate" or
                 "listing.response.window_closed" or "listing_response.already_decided" or
+                "listing.time.invalid" or "listing_response.decision.invalid_time" or
                 "user.status.invalid_transition" =>
                 new(error.Code, "The current state does not allow this operation.", ErrorCategories.Conflict),
             "user.email.invalid" or "entity.id.empty" or

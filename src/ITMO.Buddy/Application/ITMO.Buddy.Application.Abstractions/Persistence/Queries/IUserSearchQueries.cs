@@ -91,6 +91,8 @@ public interface IUserSearchQueries
         UserSearchFilter filter,
         CancellationToken cancellationToken = default);
 
+    Task<UserSearchItem?> GetOwnCardAsync(Guid viewerId, CancellationToken cancellationToken);
+
     Task<IReadOnlyList<UserSearchItem>> GetCardsAsync(
         Guid currentUserId,
         IReadOnlyCollection<Guid> userIds,

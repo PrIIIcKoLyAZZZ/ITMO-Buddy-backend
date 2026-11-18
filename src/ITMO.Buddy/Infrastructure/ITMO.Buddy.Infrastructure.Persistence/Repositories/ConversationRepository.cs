@@ -72,6 +72,16 @@ public sealed class ConversationRepository
                 cancellationToken);
     }
 
+    public async Task EnsureBetweenAsync(Conversation conversation, CancellationToken cancellationToken)
+    {
+        await _context.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO conversations (id, first_user_id, second_user_id, source_type, source_id, created_at_utc)
+            VALUES ({conversation.Id}, {conversation.FirstUserId}, {conversation.SecondUserId},
+                    {conversation.SourceType.ToString()}, {conversation.SourceId}, {conversation.CreatedAtUtc})
+            ON CONFLICT (pair_min_user_id, pair_max_user_id) DO NOTHING
+            """, cancellationToken);
+    }
+
     public void Add(Conversation conversation)
     {
         ArgumentNullException.ThrowIfNull(conversation);

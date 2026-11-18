@@ -6,6 +6,8 @@ public sealed record ListingSearchFilter
 {
     public required DateTimeOffset NowUtc { get; init; }
 
+    public Guid? ViewerId { get; init; }
+
     public string? Text { get; init; }
 
     public GoalCategory? Category { get; init; }
@@ -35,6 +37,12 @@ public sealed record ListingSearchItem(
     DateTimeOffset? DeadlineUtc,
     DateTimeOffset? EventAtUtc);
 
+public sealed record ListingAuthorItem(
+    Guid UserId,
+    string? FirstName,
+    string? LastName,
+    string? PhotoObjectKey);
+
 public interface IListingSearchQueries
 {
     Task<QueryPage<ListingSearchItem>> SearchPublicAsync(
@@ -45,4 +53,9 @@ public interface IListingSearchQueries
         Guid authorId,
         int page,
         CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<ListingAuthorItem>> GetAuthorsAsync(
+        Guid viewerId,
+        IReadOnlyCollection<Guid> authorIds,
+        CancellationToken cancellationToken);
 }

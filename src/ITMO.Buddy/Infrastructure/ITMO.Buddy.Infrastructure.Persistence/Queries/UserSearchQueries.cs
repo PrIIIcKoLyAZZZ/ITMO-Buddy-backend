@@ -202,6 +202,14 @@ public sealed class UserSearchQueries : IUserSearchQueries
             totalCount);
     }
 
+    public async Task<UserSearchItem?> GetOwnCardAsync(Guid viewerId, CancellationToken cancellationToken)
+    {
+        var cards = await LoadCardsAsync(
+            _context.UserProfiles.AsNoTracking().Where(profile => profile.UserId == viewerId),
+            cancellationToken);
+        return cards.SingleOrDefault();
+    }
+
     public Task<IReadOnlyList<UserSearchItem>> GetCardsAsync(
         Guid currentUserId,
         IReadOnlyCollection<Guid> userIds,

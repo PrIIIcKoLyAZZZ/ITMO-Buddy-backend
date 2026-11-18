@@ -212,6 +212,9 @@ public sealed class Listing : Entity
         UpdatedAtUtc = timestamp;
     }
 
+    public bool IsAvailableAt(DateTimeOffset nowUtc) =>
+        IsOpen && IsWithinResponseWindow(UtcTime.Require(nowUtc, nameof(nowUtc)));
+
     public bool CanRespond(
         Guid candidateId,
         DateTimeOffset nowUtc)
