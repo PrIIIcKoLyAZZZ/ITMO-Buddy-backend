@@ -8,6 +8,7 @@ using ITMO.Buddy.Application.Common;
 using ITMO.Buddy.Application.Contracts.Conversations;
 using ITMO.Buddy.Application.Contracts.Likes;
 using ITMO.Buddy.Application.Errors;
+using ITMO.Buddy.Application.Notifications;
 using ITMO.Buddy.Domain.Conversations;
 using ITMO.Buddy.Domain.Enums;
 using ITMO.Buddy.Domain.Interactions;
@@ -27,7 +28,8 @@ internal sealed class LikeService(
     IDateTimeProvider clock,
     IFileStorage files,
     IRealtimeNotifier notifier,
-    RealtimeDelivery realtime) : ILikeService
+    RealtimeDelivery realtime,
+    UnreadNotificationDelivery unreadDelivery) : ILikeService
 {
     public Task<LikeResponse> LikeAsync(Guid targetUserId, CancellationToken cancellationToken = default) =>
         ApplicationOperation.RunAsync(async () =>
@@ -63,6 +65,8 @@ internal sealed class LikeService(
                     var targetResult = await MapMatchAsync(match, userId, saved.ActorCard, saved.ConversationId, token);
                     await notifier.NotifyMatchCreatedAsync(targetUserId, targetResult, token);
                 }, cancellationToken);
+                await unreadDelivery.PublishAsync(userId, cancellationToken);
+                await unreadDelivery.PublishAsync(targetUserId, cancellationToken);
             }
 
             return new LikeResponse(targetUserId, IsLiked: true, IsMatch: true) { Match = result };

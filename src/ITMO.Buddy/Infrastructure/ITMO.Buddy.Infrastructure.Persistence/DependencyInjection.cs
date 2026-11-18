@@ -92,6 +92,8 @@ public static class DependencyInjection
 
         // Read queries
 
+        services.AddScoped<IConversationQueries, ConversationQueries>();
+
         services.AddScoped<
             IUserSearchQueries,
             UserSearchQueries>();

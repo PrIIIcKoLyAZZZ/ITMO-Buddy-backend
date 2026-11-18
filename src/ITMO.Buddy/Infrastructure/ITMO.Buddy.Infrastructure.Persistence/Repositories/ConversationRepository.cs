@@ -19,7 +19,7 @@ public sealed class ConversationRepository
         Guid conversationId,
         CancellationToken cancellationToken = default)
     {
-        return _context.Conversations
+        return _context.Conversations.AsNoTracking()
             .SingleOrDefaultAsync(
                 x => x.Id == conversationId,
                 cancellationToken);

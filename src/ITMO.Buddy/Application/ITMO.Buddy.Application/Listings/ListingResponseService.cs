@@ -8,6 +8,7 @@ using ITMO.Buddy.Application.Common;
 using ITMO.Buddy.Application.Contracts.Common;
 using ITMO.Buddy.Application.Contracts.Responses;
 using ITMO.Buddy.Application.Errors;
+using ITMO.Buddy.Application.Notifications;
 using ITMO.Buddy.Application.Validation;
 using ITMO.Buddy.Domain.Conversations;
 using ITMO.Buddy.Domain.Enums;
@@ -26,6 +27,7 @@ internal sealed class ListingResponseService(
     IDateTimeProvider clock,
     IRealtimeNotifier notifier,
     RealtimeDelivery realtime,
+    UnreadNotificationDelivery unreadDelivery,
     ListingAccess access,
     ListingPresentation presentation,
     IValidator<CreateListingResponseRequest> responseValidator,
@@ -49,6 +51,7 @@ internal sealed class ListingResponseService(
                 await notifier.NotifyListingResponseCreatedAsync(
                     saved.AuthorId, ListingPresentation.MapResponse(saved.Response, visibleCard), token);
             }, cancellationToken);
+            await unreadDelivery.PublishAsync(saved.AuthorId, cancellationToken);
             return result;
         });
 
@@ -194,6 +197,7 @@ internal sealed class ListingResponseService(
             await realtime.TrySendAsync(RealtimeEventNames.ListingResponseReviewed,
                 token => notifier.NotifyListingResponseReviewedAsync(saved.Response.CandidateId, dto, token),
                 cancellationToken);
+            await unreadDelivery.PublishAsync(saved.Response.CandidateId, cancellationToken);
             return dto;
         });
 

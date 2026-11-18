@@ -24,23 +24,24 @@ public sealed class MessageRepository : IMessageRepository
                 cancellationToken);
     }
 
-    public async Task<IReadOnlyList<Message>>
-        GetHistoryAsync(
-            Guid conversationId,
-            int page,
-            CancellationToken cancellationToken = default)
-    {
-        var skip = RepositoryPaging.GetSkip(page);
+    public async Task<IReadOnlyList<Message>> GetHistoryAsync(
+        Guid conversationId,
+        int page,
+        CancellationToken cancellationToken = default) =>
+        await HistoryPage(conversationId, page).AsNoTracking().ToListAsync(cancellationToken);
 
-        return await _context.Messages
-            .AsNoTracking()
-            .Where(x => x.ConversationId == conversationId)
-            .OrderByDescending(x => x.SentAtUtc)
-            .ThenByDescending(x => x.Id)
-            .Skip(skip)
-            .Take(RepositoryPaging.PageSize)
-            .ToListAsync(cancellationToken);
-    }
+    public async Task<IReadOnlyList<Message>> GetHistoryForReadingAsync(
+        Guid conversationId,
+        int page,
+        CancellationToken cancellationToken) =>
+        await HistoryPage(conversationId, page).ToListAsync(cancellationToken);
+
+    private IQueryable<Message> HistoryPage(Guid conversationId, int page) =>
+        _context.Messages.Where(message => message.ConversationId == conversationId)
+            .OrderByDescending(message => message.SentAtUtc)
+            .ThenByDescending(message => message.Id)
+            .Skip(RepositoryPaging.GetSkip(page))
+            .Take(RepositoryPaging.PageSize);
 
     public Task<int> CountHistoryAsync(
         Guid conversationId,
