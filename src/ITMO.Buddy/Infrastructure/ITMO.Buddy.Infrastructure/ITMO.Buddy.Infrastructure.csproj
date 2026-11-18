@@ -7,6 +7,12 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="BCrypt.Net-Next" />
+        <PackageReference Include="Microsoft.Extensions.Options" />
+        <PackageReference Include="System.IdentityModel.Tokens.Jwt" />
+    </ItemGroup>
+
+    <ItemGroup>
         <ProjectReference Include="../../Domain/ITMO.Buddy.Domain/ITMO.Buddy.Domain.csproj" />
         <ProjectReference Include="../../Application/ITMO.Buddy.Application.Abstractions/ITMO.Buddy.Application.Abstractions.csproj" />
     </ItemGroup>
