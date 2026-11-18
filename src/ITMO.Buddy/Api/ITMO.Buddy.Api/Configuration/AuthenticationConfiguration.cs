@@ -2,8 +2,10 @@ using System.Security.Claims;
 using System.Text.Json;
 using ITMO.Buddy.Api.Authentication;
 using ITMO.Buddy.Api.Errors;
+using ITMO.Buddy.Api.Realtime;
 using ITMO.Buddy.Infrastructure.Security;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
@@ -40,11 +42,34 @@ internal static class AuthenticationConfiguration
                 };
                 options.Events = new JwtBearerEvents
                 {
+                    OnMessageReceived = ReadHubAccessToken,
                     OnTokenValidated = ValidateIdentity,
                     OnChallenge = ApiErrorResponses.WriteChallengeAsync,
                     OnForbidden = context => ApiErrorResponses.WriteForbiddenAsync(context.HttpContext)
                 };
             });
+    }
+
+    private static Task ReadHubAccessToken(MessageReceivedContext context)
+    {
+        var request = context.Request;
+        if (request.Path != ChatHub.Path ||
+            request.HttpContext.GetEndpoint()?.Metadata.GetMetadata<HubMetadata>()?.HubType != typeof(ChatHub) ||
+            !(HttpMethods.IsGet(request.Method) || HttpMethods.IsConnect(request.Method)) ||
+            !request.Query.TryGetValue("access_token", out var tokens))
+        {
+            return Task.CompletedTask;
+        }
+
+        if (tokens.Count != 1 || string.IsNullOrWhiteSpace(tokens[0]) ||
+            request.Headers.ContainsKey("Authorization"))
+        {
+            context.Fail("Ambiguous or missing hub access token.");
+            return Task.CompletedTask;
+        }
+
+        context.Token = tokens[0];
+        return Task.CompletedTask;
     }
 
     private static Task ValidateIdentity(TokenValidatedContext context)

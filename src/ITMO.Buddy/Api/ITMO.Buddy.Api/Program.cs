@@ -7,8 +7,13 @@ using ITMO.Buddy.Application.Abstractions.Identity;
 using ITMO.Buddy.Application.Abstractions.Realtime;
 using ITMO.Buddy.Infrastructure;
 using ITMO.Buddy.Infrastructure.Persistence;
+using Microsoft.AspNetCore.SignalR;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Request-start and transport diagnostics can contain the Hub URL or connection token.
+builder.Logging.AddFilter("Microsoft.AspNetCore.Hosting.Diagnostics", LogLevel.Warning);
+builder.Logging.AddFilter("Microsoft.AspNetCore.Http.Connections", LogLevel.Warning);
 
 builder.Host.UseDefaultServiceProvider(options =>
 {
@@ -31,6 +36,7 @@ builder.Services.AddApiAuthorization();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, HttpCurrentUser>();
 builder.Services.AddSignalR();
+builder.Services.AddSingleton<IUserIdProvider, JwtSignalRUserIdProvider>();
 builder.Services.AddSingleton<IRealtimeNotifier, SignalRRealtimeNotifier>();
 builder.Services.AddApiCors(builder.Configuration);
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
@@ -43,10 +49,12 @@ app.UseExceptionHandler(new ExceptionHandlerOptions
 });
 app.UseStatusCodePages(ApiErrorResponses.WriteEmptyClientErrorAsync);
 app.UseRouting();
+app.UseMiddleware<ChatHubOriginGuard>();
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<ChatHub>(ChatHub.Path, options => options.CloseOnAuthenticationExpiration = true);
 
 app.Run();
