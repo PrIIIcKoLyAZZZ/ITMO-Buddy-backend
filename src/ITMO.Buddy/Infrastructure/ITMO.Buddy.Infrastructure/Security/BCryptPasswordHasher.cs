@@ -8,6 +8,7 @@ namespace ITMO.Buddy.Infrastructure.Security;
 internal sealed partial class BCryptPasswordHasher : IPasswordHasher
 {
     private const int WorkFactor = 12;
+    private const string DummyHash = "$2y$12$3TeHTRF4iLkTzH303VEbb.UDIWI4c4esrMOx3wBdsLhb/MhAd6pvC";
     private const int MaxPasswordBytes = 72;
     private static readonly Encoding Utf8 = new UTF8Encoding(false, throwOnInvalidBytes: true);
 
@@ -47,6 +48,12 @@ internal sealed partial class BCryptPasswordHasher : IPasswordHasher
         {
             return false;
         }
+    }
+
+    public bool VerifyWithFallback(string password, string? passwordHash)
+    {
+        var matches = Verify(password, passwordHash ?? DummyHash);
+        return passwordHash is not null && matches;
     }
 
     // Bound verification cost even when a stored hash has been corrupted.

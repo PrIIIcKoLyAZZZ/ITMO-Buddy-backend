@@ -18,4 +18,10 @@ public interface IPasswordHasher
     bool Verify(
         string password,
         string passwordHash);
+
+    /// <summary>
+    /// Проверяет пароль для входа. При отсутствующем хеше выполняет
+    /// эквивалентную по стоимости проверку и возвращает false.
+    /// </summary>
+    bool VerifyWithFallback(string password, string? passwordHash);
 }

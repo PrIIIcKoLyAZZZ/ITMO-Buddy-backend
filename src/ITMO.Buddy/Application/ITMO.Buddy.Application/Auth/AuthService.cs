@@ -76,7 +76,8 @@ internal sealed class AuthService(
             }
 
             var user = await users.GetByEmailAsync(NormalizeEmail(request.Email), cancellationToken);
-            if (user is null || !passwords.Verify(request.Password, user.PasswordHash) || !user.IsActive)
+            var passwordMatches = passwords.VerifyWithFallback(request.Password, user?.PasswordHash);
+            if (user is null || !passwordMatches || !user.IsActive)
             {
                 throw InvalidCredentials();
             }
