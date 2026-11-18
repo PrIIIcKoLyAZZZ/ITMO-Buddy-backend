@@ -17,42 +17,16 @@ internal sealed partial class MinioFileStorage : IFileStorage, IDisposable
     private readonly Uri _externalEndpoint;
     private readonly string _bucketName;
     private readonly int _expirySeconds;
+    private int _disposed;
 
     public MinioFileStorage(IOptions<MinioOptions> options)
     {
         ArgumentNullException.ThrowIfNull(options);
         var settings = options.Value;
-        var internalEndpoint = ReadOrigin(settings.InternalEndpoint, nameof(MinioOptions.InternalEndpoint));
-        _externalEndpoint = ReadOrigin(settings.ExternalEndpoint, nameof(MinioOptions.ExternalEndpoint));
-        if (_externalEndpoint.Scheme != Uri.UriSchemeHttps ||
-            _externalEndpoint.HostNameType != UriHostNameType.Dns ||
-            !_externalEndpoint.IdnHost.TrimEnd('.').Contains('.') ||
-            _externalEndpoint.IsLoopback)
-        {
-            throw new ArgumentException("MinIO external endpoint must use HTTPS and a browser-facing DNS name.",
-                nameof(MinioOptions.ExternalEndpoint));
-        }
-
-        ArgumentException.ThrowIfNullOrWhiteSpace(settings.AccessKey, nameof(MinioOptions.AccessKey));
-        ArgumentException.ThrowIfNullOrWhiteSpace(settings.SecretKey, nameof(MinioOptions.SecretKey));
-        ArgumentException.ThrowIfNullOrWhiteSpace(settings.Region, nameof(MinioOptions.Region));
-        if (settings.BucketName is null || !BucketNameFormat().IsMatch(settings.BucketName) ||
-            settings.BucketName.Contains("..", StringComparison.Ordinal) ||
-            (settings.BucketName.Contains('.') && IPAddress.TryParse(settings.BucketName, out _)))
-        {
-            throw new ArgumentException("MinIO bucket name is invalid.", nameof(MinioOptions.BucketName));
-        }
-
-        var lifetime = settings.PresignedUrlLifetime;
-        if (lifetime < TimeSpan.FromSeconds(1) || lifetime > TimeSpan.FromDays(7) ||
-            lifetime.Ticks % TimeSpan.TicksPerSecond != 0)
-        {
-            throw new ArgumentException("MinIO signed URL lifetime must be a whole number of seconds from 1 to 604800.",
-                nameof(MinioOptions.PresignedUrlLifetime));
-        }
-
+        var (internalEndpoint, externalEndpoint) = settings.ValidateAndReadEndpoints();
+        _externalEndpoint = externalEndpoint;
         _bucketName = settings.BucketName;
-        _expirySeconds = (int)lifetime.TotalSeconds;
+        _expirySeconds = (int)settings.PresignedUrlLifetime.TotalSeconds;
         _storageClient = CreateClient(internalEndpoint, settings);
         try
         {
@@ -138,6 +112,12 @@ internal sealed partial class MinioFileStorage : IFileStorage, IDisposable
 
     public void Dispose()
     {
+        // The concrete registration and the interface alias can both track this singleton.
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+        {
+            return;
+        }
+
         _signingClient.Dispose();
         _storageClient.Dispose();
     }
@@ -160,23 +140,6 @@ internal sealed partial class MinioFileStorage : IFileStorage, IDisposable
             httpClient.Dispose();
             throw;
         }
-    }
-
-    private static Uri ReadOrigin(string value, string optionName)
-    {
-        if (!Uri.TryCreate(value, UriKind.Absolute, out var endpoint) ||
-            (endpoint.Scheme != Uri.UriSchemeHttp && endpoint.Scheme != Uri.UriSchemeHttps) ||
-            endpoint.HostNameType is UriHostNameType.Basic or UriHostNameType.Unknown ||
-            endpoint.AbsolutePath != "/" || endpoint.UserInfo.Length != 0 ||
-            endpoint.Query.Length != 0 || endpoint.Fragment.Length != 0 ||
-            endpoint.Port == 0 || (endpoint.Scheme == Uri.UriSchemeHttp && endpoint.Port == 443) ||
-            (endpoint.Scheme == Uri.UriSchemeHttps && endpoint.Port == 80))
-        {
-            throw new ArgumentException("MinIO endpoint must be an HTTP or HTTPS origin without credentials or a path.",
-                optionName);
-        }
-
-        return endpoint;
     }
 
     private static void ValidateObjectKey(string objectKey)
@@ -244,9 +207,6 @@ internal sealed partial class MinioFileStorage : IFileStorage, IDisposable
 
     [GeneratedRegex(@"\Aprofiles/[A-Za-z0-9_-][A-Za-z0-9_.-]{0,502}\z")]
     private static partial Regex PhotoKeyFormat();
-
-    [GeneratedRegex(@"\A[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]\z")]
-    private static partial Regex BucketNameFormat();
 
     private sealed class StorageHttpHandler() : DelegatingHandler(new SocketsHttpHandler { AllowAutoRedirect = false })
     {

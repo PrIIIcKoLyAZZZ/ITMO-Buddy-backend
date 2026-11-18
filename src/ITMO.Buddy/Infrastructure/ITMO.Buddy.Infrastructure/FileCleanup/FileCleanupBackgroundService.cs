@@ -18,6 +18,13 @@ internal sealed partial class FileCleanupBackgroundService(
     ILogger<FileCleanupBackgroundService> logger) : BackgroundService
 {
     private static readonly TimeSpan ErrorLogInterval = TimeSpan.FromMinutes(5);
+    private static readonly string[] LastModifiedFormats =
+    [
+        "yyyy-MM-dd'T'HH:mm:ss'Z'",
+        "yyyy-MM-dd'T'HH:mm:ss.FFFFFFF'Z'",
+        "yyyy-MM-dd'T'HH:mm:sszzz",
+        "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFzzz"
+    ];
     private readonly FileCleanupOptions _settings = options.Value;
     private readonly Dictionary<(string Operation, string Reason), long> _lastFailureLogs = new();
 
@@ -148,8 +155,17 @@ internal sealed partial class FileCleanupBackgroundService(
         {
             try
             {
-                var enqueued = await ReconcileBucketAsync(stoppingToken);
-                logger.LogInformation("File cleanup reconciliation completed and enqueued {OrphanCount} orphan candidates.", enqueued);
+                var (enqueued, invalidDates) = await ReconcileBucketAsync(stoppingToken);
+                if (invalidDates == 0)
+                {
+                    logger.LogInformation("File cleanup reconciliation completed and enqueued {OrphanCount} orphan candidates.", enqueued);
+                }
+                else if (ShouldLogFailure("reconciliation", "invalid LastModified"))
+                {
+                    logger.LogWarning(
+                        "File cleanup reconciliation was partial. Skipped {InvalidDates} photos with invalid LastModified and enqueued {OrphanCount} orphan candidates.",
+                        invalidDates, enqueued);
+                }
             }
             catch (Exception error) when (!stoppingToken.IsCancellationRequested)
             {
@@ -165,11 +181,12 @@ internal sealed partial class FileCleanupBackgroundService(
         }
     }
 
-    private async Task<long> ReconcileBucketAsync(CancellationToken stoppingToken)
+    private async Task<(long Enqueued, long InvalidDates)> ReconcileBucketAsync(CancellationToken stoppingToken)
     {
         var cutoffUtc = clock.UtcNow - _settings.ReconciliationMinimumObjectAge;
         var keys = new List<string>(_settings.BatchSize);
         long enqueued = 0;
+        long invalidDates = 0;
         using var listingCancellation = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
         await using var storageScope = scopes.CreateAsyncScope();
         var storage = storageScope.ServiceProvider.GetRequiredService<MinioFileStorage>();
@@ -186,11 +203,19 @@ internal sealed partial class FileCleanupBackgroundService(
             }
 
             var item = listing.Current;
-            if (item.IsDir || item.Key is not { } key || !ProfilePhotoKey().IsMatch(key) ||
-                !DateTimeOffset.TryParseExact(item.LastModified, "yyyy-MM-dd'T'HH:mm:ss.FFFFFFF'Z'",
-                    CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
-                    out var modifiedUtc) ||
-                modifiedUtc > cutoffUtc)
+            if (item.IsDir || item.Key is not { } key || !ProfilePhotoKey().IsMatch(key))
+            {
+                continue;
+            }
+
+            if (!DateTimeOffset.TryParseExact(item.LastModified, LastModifiedFormats, CultureInfo.InvariantCulture,
+                    DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var modifiedUtc))
+            {
+                invalidDates++;
+                continue;
+            }
+
+            if (modifiedUtc > cutoffUtc)
             {
                 continue;
             }
@@ -208,7 +233,7 @@ internal sealed partial class FileCleanupBackgroundService(
             enqueued += await EnqueueOrphansAsync(keys, stoppingToken);
         }
 
-        return enqueued;
+        return (enqueued, invalidDates);
     }
 
     private async Task<int> EnqueueOrphansAsync(IReadOnlyCollection<string> keys, CancellationToken stoppingToken)
@@ -244,6 +269,14 @@ internal sealed partial class FileCleanupBackgroundService(
             _ => error.GetType().Name
         };
 
+        if (ShouldLogFailure(operation, reason))
+        {
+            logger.LogWarning("File cleanup {Operation} failed ({Reason}).", operation, reason);
+        }
+    }
+
+    private bool ShouldLogFailure(string operation, string reason)
+    {
         var key = (operation, reason);
         var time = TimeProvider.System.GetTimestamp();
         lock (_lastFailureLogs)
@@ -251,13 +284,13 @@ internal sealed partial class FileCleanupBackgroundService(
             if (_lastFailureLogs.TryGetValue(key, out var previous) &&
                 TimeProvider.System.GetElapsedTime(previous, time) < ErrorLogInterval)
             {
-                return;
+                return false;
             }
 
             _lastFailureLogs[key] = time;
         }
 
-        logger.LogWarning("File cleanup {Operation} failed ({Reason}).", operation, reason);
+        return true;
     }
 
     [GeneratedRegex(@"\Aprofiles/[0-9a-f]{32}\.(jpg|png)\z")]

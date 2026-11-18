@@ -11,7 +11,6 @@ namespace ITMO.Buddy.Infrastructure.Security;
 
 internal sealed class JwtTokenService : ITokenService
 {
-    private const int MinimumSigningKeyBytes = 32;
     private const int RefreshTokenBytes = 32;
     private static readonly TimeSpan RefreshLifetime = TimeSpan.FromDays(14);
     private readonly string _issuer;
@@ -23,19 +22,11 @@ internal sealed class JwtTokenService : ITokenService
     {
         ArgumentNullException.ThrowIfNull(options);
         var settings = options.Value;
-        ArgumentException.ThrowIfNullOrWhiteSpace(settings.Issuer, nameof(JwtOptions.Issuer));
-        ArgumentException.ThrowIfNullOrWhiteSpace(settings.Audience, nameof(JwtOptions.Audience));
-        if (settings.AccessTokenLifetime < TimeSpan.FromSeconds(1) ||
-            settings.AccessTokenLifetime > TimeSpan.FromMinutes(30))
-        {
-            throw new ArgumentException("JWT access token lifetime must be between one second and 30 minutes.",
-                nameof(JwtOptions.AccessTokenLifetime));
-        }
-
+        var keyBytes = settings.ValidateAndReadSigningKey();
         _issuer = settings.Issuer;
         _audience = settings.Audience;
         _accessLifetime = settings.AccessTokenLifetime;
-        _signingCredentials = new SigningCredentials(ReadSigningKey(settings.SigningKey), SecurityAlgorithms.HmacSha256);
+        _signingCredentials = new SigningCredentials(new SymmetricSecurityKey(keyBytes), SecurityAlgorithms.HmacSha256);
     }
 
     public AccessTokenIssue CreateAccessToken(Guid userId, UserRole role, DateTimeOffset issuedAtUtc)
@@ -68,26 +59,5 @@ internal sealed class JwtTokenService : ITokenService
     {
         ArgumentNullException.ThrowIfNull(refreshToken);
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(refreshToken)));
-    }
-
-    private static SymmetricSecurityKey ReadSigningKey(string signingKey)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(signingKey, nameof(JwtOptions.SigningKey));
-        byte[] keyBytes;
-        try
-        {
-            keyBytes = Convert.FromBase64String(signingKey);
-        }
-        catch (FormatException)
-        {
-            throw new ArgumentException("JWT signing key must be valid Base64.", nameof(JwtOptions.SigningKey));
-        }
-
-        if (keyBytes.Length < MinimumSigningKeyBytes)
-        {
-            throw new ArgumentException("JWT signing key must decode to at least 32 bytes.", nameof(JwtOptions.SigningKey));
-        }
-
-        return new SymmetricSecurityKey(keyBytes);
     }
 }
