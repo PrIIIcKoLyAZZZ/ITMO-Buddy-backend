@@ -51,66 +51,16 @@ public sealed class RecommendationCandidateQueries
 
         var currentUserId = request.CurrentUserId;
 
-        var currentProfileId = await _context.UserProfiles
-            .AsNoTracking()
-            .Where(x => x.UserId == currentUserId)
-            .Select(x => (Guid?)x.Id)
-            .SingleOrDefaultAsync(cancellationToken);
+        var query = DiscoverableProfiles.ForViewer(_context, currentUserId)
+            .Where(profile => !_context.UserLikes.Any(like =>
+                like.SenderId == currentUserId && like.TargetId == profile.UserId));
 
-        if (currentProfileId is null)
+        if (request.AfterProfileId is { } afterProfileId)
         {
-            return Array.Empty<RecommendationCandidate>();
+            query = query.Where(profile => EF.Functions.GreaterThan(
+                ValueTuple.Create(profile.Id),
+                ValueTuple.Create(afterProfileId)));
         }
-
-        var currentGoals = await _context
-            .Set<ProfileGoalRow>()
-            .AsNoTracking()
-            .Where(x => x.ProfileId == currentProfileId.Value)
-            .Select(x => x.GoalCategory)
-            .ToArrayAsync(cancellationToken);
-
-        if (currentGoals.Length == 0)
-        {
-            return Array.Empty<RecommendationCandidate>();
-        }
-
-        // Avoid enum-array conversion issues in SQL.
-
-        var studies = currentGoals.Contains(GoalCategory.Studies);
-        var projects = currentGoals.Contains(GoalCategory.Projects);
-        var events = currentGoals.Contains(GoalCategory.Events);
-        var interests = currentGoals.Contains(GoalCategory.Interests);
-
-        var query = _context.UserProfiles
-            .AsNoTracking()
-            .Where(profile =>
-                profile.UserId != currentUserId &&
-                profile.IsVisible &&
-
-                _context.Users.Any(user =>
-                    user.Id == profile.UserId &&
-                    user.Status == UserStatus.Active) &&
-
-                !_context.UserBlocks.Any(block =>
-                    (block.BlockerId == currentUserId &&
-                     block.BlockedUserId == profile.UserId) ||
-                    (block.BlockerId == profile.UserId &&
-                     block.BlockedUserId == currentUserId)) &&
-
-                !_context.UserLikes.Any(like =>
-                    like.SenderId == currentUserId &&
-                    like.TargetId == profile.UserId) &&
-
-                _context.Set<ProfileGoalRow>().Any(goal =>
-                    goal.ProfileId == profile.Id &&
-                    ((studies &&
-                      goal.GoalCategory == GoalCategory.Studies) ||
-                     (projects &&
-                      goal.GoalCategory == GoalCategory.Projects) ||
-                     (events &&
-                      goal.GoalCategory == GoalCategory.Events) ||
-                     (interests &&
-                      goal.GoalCategory == GoalCategory.Interests))));
 
         if (request.GoalFilter is GoalCategory goalFilter)
         {

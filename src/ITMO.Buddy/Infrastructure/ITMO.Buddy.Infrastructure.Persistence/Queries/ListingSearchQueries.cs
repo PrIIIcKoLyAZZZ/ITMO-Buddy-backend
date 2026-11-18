@@ -53,12 +53,20 @@ public sealed class ListingSearchQueries : IListingSearchQueries
         var query = _context.Listings
             .AsNoTracking()
             .Where(listing =>
+                _context.Users.Any(user => user.Id == listing.AuthorId && user.Status == UserStatus.Active) &&
                 listing.Status == ListingStatus.Open &&
                 listing.CreatedAtUtc <= nowUtc &&
                 (listing.DeadlineUtc == null ||
                  listing.DeadlineUtc > nowUtc) &&
                 (listing.EventAtUtc == null ||
                  listing.EventAtUtc > nowUtc));
+
+        if (filter.ViewerId is { } viewerId)
+        {
+            query = query.Where(listing => !_context.UserBlocks.Any(block =>
+                (block.BlockerId == viewerId && block.BlockedUserId == listing.AuthorId) ||
+                (block.BlockerId == listing.AuthorId && block.BlockedUserId == viewerId)));
+        }
 
         if (text is not null)
         {
@@ -131,6 +139,17 @@ public sealed class ListingSearchQueries : IListingSearchQueries
             page,
             cancellationToken);
     }
+
+    public async Task<IReadOnlyList<ListingAuthorItem>> GetAuthorsAsync(
+        Guid viewerId,
+        IReadOnlyCollection<Guid> authorIds,
+        CancellationToken cancellationToken) =>
+        await _context.UserProfiles.AsNoTracking()
+            .Where(profile => authorIds.Contains(profile.UserId) &&
+                              (profile.UserId == viewerId || profile.IsVisible))
+            .Select(profile => new ListingAuthorItem(
+                profile.UserId, profile.FirstName, profile.LastName, profile.PhotoObjectKey))
+            .ToArrayAsync(cancellationToken);
 
     private static async Task<QueryPage<ListingSearchItem>> ToPageAsync(
         IQueryable<Listing> query,

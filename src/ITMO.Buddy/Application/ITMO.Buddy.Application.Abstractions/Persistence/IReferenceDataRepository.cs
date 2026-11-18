@@ -39,6 +39,8 @@ public interface IReferenceDataRepository
 
     void Add(Interest interest);
 
+    Task<Interest> GetOrCreateAsync(Interest candidate, CancellationToken cancellationToken);
+
     Task<Skill?> GetSkillByIdAsync(
         Guid skillId,
         CancellationToken cancellationToken = default);
@@ -60,4 +62,6 @@ public interface IReferenceDataRepository
         CancellationToken cancellationToken = default);
 
     void Add(Skill skill);
+
+    Task<Skill> GetOrCreateAsync(Skill candidate, CancellationToken cancellationToken);
 }

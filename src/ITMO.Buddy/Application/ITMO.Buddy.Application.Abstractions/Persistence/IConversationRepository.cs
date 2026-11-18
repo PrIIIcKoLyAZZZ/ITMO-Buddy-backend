@@ -25,6 +25,9 @@ public interface IConversationRepository
         Guid userId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Creates a conversation if the unordered pair has none, within the caller's transaction.</summary>
+    Task EnsureBetweenAsync(Conversation conversation, CancellationToken cancellationToken);
+
     void Add(Conversation conversation);
 
     void Remove(Conversation conversation);

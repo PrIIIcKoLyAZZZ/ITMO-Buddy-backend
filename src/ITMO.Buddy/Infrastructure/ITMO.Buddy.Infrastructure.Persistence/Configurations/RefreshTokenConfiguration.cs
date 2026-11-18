@@ -73,6 +73,8 @@ public sealed class RefreshTokenConfiguration
             .HasDatabaseName(
                 "ix_refresh_tokens_expires_at_utc");
 
+        builder.Property<uint>("xmin").IsRowVersion();
+
         builder.Ignore(x => x.IsRevoked);
     }
 }

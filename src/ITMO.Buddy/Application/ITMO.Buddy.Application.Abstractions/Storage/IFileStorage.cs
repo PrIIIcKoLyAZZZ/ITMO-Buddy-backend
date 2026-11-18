@@ -6,7 +6,7 @@ namespace ITMO.Buddy.Application.Abstractions.Storage;
 public interface IFileStorage
 {
     /// <summary>
-    /// Сохраняет файл в хранилище.
+    /// Сохраняет файл в хранилище строго под переданным ObjectKey.
     /// Не закрывает переданный поток.
     /// </summary>
     Task<StoredFile> UploadAsync(

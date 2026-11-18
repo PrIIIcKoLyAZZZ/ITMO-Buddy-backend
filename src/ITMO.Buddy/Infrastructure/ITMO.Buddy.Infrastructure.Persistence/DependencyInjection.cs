@@ -43,6 +43,9 @@ public static class DependencyInjection
 
         // Repositories
 
+        services.AddScoped<IAccountMaintenanceRepository, AccountMaintenanceRepository>();
+        services.AddScoped<IFileCleanupQueue, FileCleanupQueue>();
+
         services.AddScoped<
             IUserRepository,
             UserRepository>();
@@ -89,6 +92,8 @@ public static class DependencyInjection
 
         // Read queries
 
+        services.AddScoped<IConversationQueries, ConversationQueries>();
+
         services.AddScoped<
             IUserSearchQueries,
             UserSearchQueries>();
@@ -102,6 +107,8 @@ public static class DependencyInjection
             ListingSearchQueries>();
 
         // Unit of Work and transactions
+
+        services.AddScoped<IUserPairLock, PostgresUserPairLock>();
 
         services.AddScoped<
             IUnitOfWork,

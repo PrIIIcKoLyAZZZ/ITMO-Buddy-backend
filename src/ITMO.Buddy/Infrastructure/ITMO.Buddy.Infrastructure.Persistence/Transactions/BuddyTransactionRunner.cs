@@ -1,8 +1,10 @@
 using System.Data;
 using ITMO.Buddy.Application.Abstractions.Persistence;
 using ITMO.Buddy.Infrastructure.Persistence.Context;
+using ITMO.Buddy.Infrastructure.Persistence.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
+using Npgsql;
 
 namespace ITMO.Buddy.Infrastructure.Persistence.Transactions;
 
@@ -11,13 +13,16 @@ public sealed class BuddyTransactionRunner
 {
     private readonly BuddyDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ProfileGoalsStore _goalsStore;
 
     public BuddyTransactionRunner(
         BuddyDbContext context,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ProfileGoalsStore goalsStore)
     {
         _context = context;
         _unitOfWork = unitOfWork;
+        _goalsStore = goalsStore;
     }
 
     public async Task ExecuteAsync(
@@ -84,6 +89,10 @@ public sealed class BuddyTransactionRunner
                             original,
                             rollbackFailure));
                 }
+                finally
+                {
+                    ClearTrackedState();
+                }
 
                 if (PostgresExceptionTranslator.CanTranslate(
                     original))
@@ -100,8 +109,17 @@ public sealed class BuddyTransactionRunner
                 await transaction.CommitAsync(
                     cancellationToken);
             }
+            catch (PostgresException rejected) when (rejected.SqlState is
+                PostgresErrorCodes.UniqueViolation or PostgresErrorCodes.ForeignKeyViolation or
+                PostgresErrorCodes.CheckViolation or PostgresErrorCodes.NotNullViolation or
+                PostgresErrorCodes.SerializationFailure or PostgresErrorCodes.DeadlockDetected)
+            {
+                ClearTrackedState();
+                throw PostgresExceptionTranslator.Translate(rejected);
+            }
             catch (Exception commitFailure)
             {
+                ClearTrackedState();
                 throw new PersistenceException(
                     PersistenceErrorCode.TransactionOutcomeUnknown,
                     "The transaction commit outcome is unknown.",
@@ -110,5 +128,11 @@ public sealed class BuddyTransactionRunner
 
             return result;
         }
+    }
+
+    private void ClearTrackedState()
+    {
+        _context.ChangeTracker.Clear();
+        _goalsStore.ClearSnapshots();
     }
 }

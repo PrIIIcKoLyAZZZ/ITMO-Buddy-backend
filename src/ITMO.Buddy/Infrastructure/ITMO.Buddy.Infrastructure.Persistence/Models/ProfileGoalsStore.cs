@@ -112,6 +112,11 @@ public sealed class ProfileGoalsStore
         return true;
     }
 
+    public void ClearSnapshots()
+    {
+        _snapshots.Clear();
+    }
+
     public void AcceptSavedChanges(
         IEnumerable<UserProfile> profiles)
     {

@@ -13,6 +13,12 @@ public interface IMessageRepository
         int page,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Loads tracked messages so the caller can record read receipts on the returned page.</summary>
+    Task<IReadOnlyList<Message>> GetHistoryForReadingAsync(
+        Guid conversationId,
+        int page,
+        CancellationToken cancellationToken);
+
     /// <summary>
     /// Общее количество сообщений в диалоге.
     /// </summary>

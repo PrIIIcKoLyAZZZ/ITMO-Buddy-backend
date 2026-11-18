@@ -1,4 +1,5 @@
 using ITMO.Buddy.Application.Abstractions.Persistence;
+using ITMO.Buddy.Domain.Enums;
 using ITMO.Buddy.Domain.Listings;
 using ITMO.Buddy.Infrastructure.Persistence.Context;
 using Microsoft.EntityFrameworkCore;
@@ -24,11 +25,29 @@ public sealed class ListingRepository : IListingRepository
                 cancellationToken);
     }
 
+    public Task<Listing?> GetDetailsAsync(Guid listingId, CancellationToken cancellationToken) =>
+        _context.Listings.AsNoTracking().Include(listing => listing.RequiredSkills)
+            .SingleOrDefaultAsync(listing => listing.Id == listingId, cancellationToken);
+
+    public Task<Listing?> GetForEditingAsync(Guid listingId, CancellationToken cancellationToken) =>
+        _context.Listings.Include(listing => listing.RequiredSkills)
+            .SingleOrDefaultAsync(listing => listing.Id == listingId, cancellationToken);
+
+    public Task<Listing?> GetForRespondingAsync(Guid listingId, Guid candidateId, CancellationToken cancellationToken) =>
+        _context.Listings.Include(listing => listing.Responses.Where(response => response.CandidateId == candidateId))
+            .SingleOrDefaultAsync(listing => listing.Id == listingId, cancellationToken);
+
+    public Task<Guid?> GetAuthorIdAsync(Guid listingId, CancellationToken cancellationToken) =>
+        _context.Listings.AsNoTracking().Where(listing => listing.Id == listingId)
+            .Select(listing => (Guid?)listing.AuthorId)
+            .SingleOrDefaultAsync(cancellationToken);
+
     public Task<Listing?> GetByResponseIdAsync(
         Guid responseId,
         CancellationToken cancellationToken = default)
     {
-        return CreateAggregateQuery()
+        return _context.Listings
+            .Include(listing => listing.Responses.Where(response => response.Id == responseId))
             .SingleOrDefaultAsync(
                 x => x.Responses.Any(
                     response => response.Id == responseId),
@@ -43,9 +62,7 @@ public sealed class ListingRepository : IListingRepository
     {
         var skip = RepositoryPaging.GetSkip(page);
 
-        return await _context.ListingResponses
-            .AsNoTracking()
-            .Where(x => x.ListingId == listingId)
+        return await VisibleListingResponses(listingId)
             .OrderByDescending(x => x.CreatedAtUtc)
             .ThenByDescending(x => x.Id)
             .Skip(skip)
@@ -57,11 +74,7 @@ public sealed class ListingRepository : IListingRepository
         Guid listingId,
         CancellationToken cancellationToken = default)
     {
-        return _context.ListingResponses
-            .AsNoTracking()
-            .CountAsync(
-                x => x.ListingId == listingId,
-                cancellationToken);
+        return VisibleListingResponses(listingId).CountAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyList<ListingResponse>>
@@ -91,6 +104,33 @@ public sealed class ListingRepository : IListingRepository
             .CountAsync(
                 x => x.CandidateId == candidateId,
                 cancellationToken);
+    }
+
+    private IQueryable<ListingResponse> VisibleListingResponses(Guid listingId) =>
+        from response in _context.ListingResponses.AsNoTracking()
+        join listing in _context.Listings on response.ListingId equals listing.Id
+        where response.ListingId == listingId &&
+              _context.Users.Any(user => user.Id == response.CandidateId && user.Status == UserStatus.Active) &&
+              !_context.UserBlocks.Any(block =>
+                  (block.BlockerId == listing.AuthorId && block.BlockedUserId == response.CandidateId) ||
+                  (block.BlockerId == response.CandidateId && block.BlockedUserId == listing.AuthorId))
+        select response;
+
+    public void AddResponse(ListingResponse response) =>
+        _context.ListingResponses.Add(response);
+
+    public void RequireCurrentVersion(Listing listing) =>
+        _context.Entry(listing).Property(item => item.UpdatedAtUtc).IsModified = true;
+
+    public async Task RemoveResponseNotificationsAsync(Guid listingId, CancellationToken cancellationToken)
+    {
+        await _context.Notifications.Where(notification =>
+            (notification.Type == NotificationType.ListingResponseCreated ||
+             notification.Type == NotificationType.ListingResponseAccepted ||
+             notification.Type == NotificationType.ListingResponseRejected) &&
+            _context.ListingResponses.Any(response =>
+                response.Id == notification.RelatedEntityId && response.ListingId == listingId))
+            .ExecuteDeleteAsync(cancellationToken);
     }
 
     public void Add(Listing listing)

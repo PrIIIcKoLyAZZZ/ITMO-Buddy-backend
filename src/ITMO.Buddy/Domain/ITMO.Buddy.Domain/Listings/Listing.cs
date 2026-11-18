@@ -212,6 +212,9 @@ public sealed class Listing : Entity
         UpdatedAtUtc = timestamp;
     }
 
+    public bool IsAvailableAt(DateTimeOffset nowUtc) =>
+        IsOpen && IsWithinResponseWindow(UtcTime.Require(nowUtc, nameof(nowUtc)));
+
     public bool CanRespond(
         Guid candidateId,
         DateTimeOffset nowUtc)
@@ -324,6 +327,21 @@ public sealed class Listing : Entity
         response.Accept(timestamp);
 
         AcceptedParticipantsCount++;
+        UpdatedAtUtc = timestamp;
+    }
+
+    public void RemoveAcceptedParticipant(DateTimeOffset updatedAtUtc)
+    {
+        var timestamp = RequireOperationTime(updatedAtUtc);
+
+        if (AcceptedParticipantsCount == 0)
+        {
+            throw new DomainException(
+                "listing.participants.inconsistent",
+                "The listing has no accepted participants to remove.");
+        }
+
+        AcceptedParticipantsCount--;
         UpdatedAtUtc = timestamp;
     }
 

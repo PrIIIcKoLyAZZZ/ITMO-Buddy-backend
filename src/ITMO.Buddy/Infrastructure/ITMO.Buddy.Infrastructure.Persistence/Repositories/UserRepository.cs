@@ -30,7 +30,7 @@ public sealed class UserRepository : IUserRepository
     {
         var value = PrepareEmail(email);
 
-        return _context.Users
+        return _context.Users.AsNoTracking()
             .FirstOrDefaultAsync(
                 x => x.Email == value,
                 cancellationToken);
