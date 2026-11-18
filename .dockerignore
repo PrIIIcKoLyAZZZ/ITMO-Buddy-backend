@@ -2,6 +2,8 @@
 !ITMO-Buddy-backend.slnx
 !Directory.Build.props
 !Directory.Packages.props
+!.config/
+!.config/dotnet-tools.json
 !src/**/
 !src/**/*.cs
 !src/**/*.csproj

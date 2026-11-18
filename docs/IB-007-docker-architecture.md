@@ -69,3 +69,11 @@ Caddy `tls internal` создаёт сертификаты и CA. Сохраня
 | PostgreSQL с хоста | `127.0.0.1:2438` |
 
 Для SignalR предусмотрены JWT Bearer и проверка Origin. Refresh-cookie использует `HttpOnly`, `Secure`, `SameSite=Strict` и путь `/api/auth`; браузерный сценарий требует same-site HTTPS frontend и credentialed requests для операций с cookie. Убедиться, что явный Origin допускается также проверками auth и Hub.
+
+## Реализация этапа 2
+
+`compose.frontend.yml` подключается вместе с базовым `compose.yml` через `--env-file .env.docker`. Используйте `.env.docker.example` как список параметров. Для существующего `postgres_data` нужны действующие `POSTGRES_*`. Строка подключения API и мигратора формируется из тех же имени БД и пользователя, пароль передаётся Npgsql через `PGPASSWORD`. В качестве имён БД и пользователя используйте простые идентификаторы, как в примере. Для обновления исходников запускайте `docker compose --env-file .env.docker -f compose.yml -f compose.frontend.yml up -d --build`. Compose пересоздаёт job при изменении образа, а API зависит от её успешного завершения.
+
+`edge` использует `172.31.243.0/28`, выделенный Caddy адрес `172.31.243.2` и отдельный динамический диапазон `172.31.243.8/29`. Такой диапазон предотвращает выдачу адреса Caddy другому контейнеру до его запуска. При конфликте с локальной сетью задайте `CADDY_SUBNET`, `CADDY_DYNAMIC_RANGE` и `CADDY_IP` согласованно. Caddy подключён к `edge`, API и MinIO — к обеим сетям. Консоль MinIO выключена.
+
+Для проверки TLS используйте публичный сертификат `/data/caddy/pki/authorities/local/root.crt` из контейнера Caddy с `curl --cacert`. Caddy пропускает установку CA в системное хранилище. При остановке стека сохраняйте volumes PostgreSQL, MinIO и Caddy.

@@ -7,6 +7,7 @@ using ITMO.Buddy.Infrastructure.Storage;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
 namespace ITMO.Buddy.Infrastructure;
@@ -22,6 +23,8 @@ public static class DependencyInjection
             static options => CryptographicOperations.ZeroMemory(options.ValidateAndReadSigningKey()));
         AddValidatedOptions<MinioOptions>(services, configuration.GetSection("Minio"),
             static options => options.ValidateAndReadEndpoints());
+        services.AddOptions<MinioOptions>().PostConfigure<IHostEnvironment>(
+            static (options, environment) => options.IsDevelopment = environment.IsDevelopment());
         AddValidatedOptions<FileCleanupOptions>(services, configuration.GetSection("FileCleanup"),
             static options => options.Validate());
 
