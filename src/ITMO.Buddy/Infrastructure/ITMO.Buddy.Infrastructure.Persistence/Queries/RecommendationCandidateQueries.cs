@@ -57,7 +57,9 @@ public sealed class RecommendationCandidateQueries
 
         if (request.AfterProfileId is { } afterProfileId)
         {
-            query = query.Where(profile => profile.Id.CompareTo(afterProfileId) > 0);
+            query = query.Where(profile => EF.Functions.GreaterThan(
+                ValueTuple.Create(profile.Id),
+                ValueTuple.Create(afterProfileId)));
         }
 
         if (request.GoalFilter is GoalCategory goalFilter)
