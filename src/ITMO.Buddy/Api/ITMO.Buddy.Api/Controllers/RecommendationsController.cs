@@ -15,6 +15,7 @@ public sealed class RecommendationsController(IRecommendationService recommendat
         recommendations.GetRecommendationsAsync(request, cancellationToken);
 
     [HttpPost("{userId:guid}/skip")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Skip(Guid userId, CancellationToken cancellationToken)
     {
         await recommendations.SkipRecommendationAsync(userId, cancellationToken);

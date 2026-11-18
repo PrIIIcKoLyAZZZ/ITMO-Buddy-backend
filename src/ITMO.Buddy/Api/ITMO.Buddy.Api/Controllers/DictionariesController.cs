@@ -1,8 +1,10 @@
+using ITMO.Buddy.Api.Configuration;
 using ITMO.Buddy.Api.Errors;
 using ITMO.Buddy.Application.Abstractions.Services;
 using ITMO.Buddy.Application.Contracts.Common;
 using ITMO.Buddy.Application.Contracts.Dictionaries;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace ITMO.Buddy.Api.Controllers;
 
@@ -29,11 +31,13 @@ public sealed class DictionariesController(IDictionaryService dictionaries) : Co
     }
 
     [HttpPost("interests")]
+    [EnableRateLimiting(RateLimitingConfiguration.Tags)]
     public Task<DictionaryItemResponse> CreateInterest(
         CreateDictionaryItemRequest request, CancellationToken cancellationToken) =>
         dictionaries.CreateInterestAsync(request, cancellationToken);
 
     [HttpPost("skills")]
+    [EnableRateLimiting(RateLimitingConfiguration.Tags)]
     public Task<DictionaryItemResponse> CreateSkill(
         CreateDictionaryItemRequest request, CancellationToken cancellationToken) =>
         dictionaries.CreateSkillAsync(request, cancellationToken);

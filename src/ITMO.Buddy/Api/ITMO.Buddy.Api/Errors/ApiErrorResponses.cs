@@ -1,3 +1,4 @@
+using System.Globalization;
 using ITMO.Buddy.Application.Contracts.Common;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics;
@@ -16,11 +17,17 @@ internal static class ApiErrorResponses
         return context.Response.WriteAsJsonAsync(error, context.RequestAborted);
     }
 
-    public static ObjectResult ToActionResult(ErrorResponse error) =>
-        new(error) { StatusCode = GetStatusCode(error) };
+    public static ObjectResult ToActionResult(ErrorResponse error, int? statusCode = null) =>
+        new(error) { StatusCode = statusCode ?? GetStatusCode(error) };
 
-    public static IActionResult InvalidModelState(ActionContext context) =>
-        ToActionResult(new ErrorResponse("request.invalid", "The request contains invalid or missing data.",
+    public static IActionResult InvalidModelState(ActionContext context)
+    {
+        if (context.ModelState.Values.Any(entry => entry.Errors.Any(error => IsOversized(error.Exception))))
+        {
+            return PayloadTooLargeResult();
+        }
+
+        return ToActionResult(new ErrorResponse("request.invalid", "The request contains invalid or missing data.",
             ErrorCategories.Validation)
         {
             ValidationErrors = context.ModelState
@@ -28,12 +35,53 @@ internal static class ApiErrorResponses
                 .Select(field => new ValidationError(field.Key, ["Invalid or missing value."]))
                 .ToArray()
         });
+    }
 
-    public static ObjectResult ValidationResult(string code, string field, string message) =>
+    public static ObjectResult PayloadTooLargeResult() =>
+        ToActionResult(DescribeClientError(StatusCodes.Status413PayloadTooLarge)!, StatusCodes.Status413PayloadTooLarge);
+
+    private static bool IsOversized(Exception? exception)
+    {
+        for (var error = exception; error is not null; error = error.InnerException)
+        {
+            if (error is BadHttpRequestException { StatusCode: StatusCodes.Status413PayloadTooLarge })
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static ObjectResult ValidationResult(string code, string field, string message, int? statusCode = null) =>
         ToActionResult(new ErrorResponse(code, message, ErrorCategories.Validation)
         {
             ValidationErrors = [new ValidationError(field, [message])]
-        });
+        }, statusCode);
+
+    public static ObjectResult RateLimitedResult(HttpContext context, string code, TimeSpan? retryAfter)
+    {
+        SetRetryAfter(context, retryAfter);
+        return ToActionResult(RateLimitedError(code), StatusCodes.Status429TooManyRequests);
+    }
+
+    public static Task WriteRateLimitedAsync(HttpContext context, TimeSpan? retryAfter)
+    {
+        SetRetryAfter(context, retryAfter);
+        return WriteAsync(context, RateLimitedError("request.rate_limited"), StatusCodes.Status429TooManyRequests);
+    }
+
+    private static ErrorResponse RateLimitedError(string code) =>
+        new(code, "Too many requests. Try again later.", "RateLimited");
+
+    private static void SetRetryAfter(HttpContext context, TimeSpan? retryAfter)
+    {
+        if (retryAfter.HasValue)
+        {
+            context.Response.Headers.RetryAfter =
+                Math.Max(1, Math.Ceiling(retryAfter.Value.TotalSeconds)).ToString(CultureInfo.InvariantCulture);
+        }
+    }
 
     public static Task WriteEmptyClientErrorAsync(StatusCodeContext context)
     {

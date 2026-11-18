@@ -1,8 +1,10 @@
 using ITMO.Buddy.Api.Errors;
+using ITMO.Buddy.Api.Configuration;
 using ITMO.Buddy.Application.Abstractions.Profiles;
 using ITMO.Buddy.Application.Abstractions.Services;
 using ITMO.Buddy.Application.Contracts.Profiles;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace ITMO.Buddy.Api.Controllers;
 
@@ -26,16 +28,24 @@ public sealed class ProfilesController(IProfileService profiles) : ControllerBas
         profiles.GetProfileAsync(id, cancellationToken);
 
     [HttpPost("me/photo")]
+    [EnableRateLimiting(RateLimitingConfiguration.Photo)]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(MaxPhotoRequestBytes)]
     [RequestFormLimits(MultipartBodyLengthLimit = MaxPhotoRequestBytes)]
+    [TypeFilter(typeof(PhotoRequestLimitFilter))]
     public async Task<ActionResult<UploadPhotoResponse>> UploadPhoto(
         IFormFile? file, CancellationToken cancellationToken)
     {
-        if (file is null || file.Length is <= 0 or > MaxPhotoBytes)
+        if (file is null || file.Length <= 0)
         {
             return ApiErrorResponses.ValidationResult("profile.photo.invalid_size", "file",
                 "A photo between 1 byte and 5 MiB is required.");
+        }
+
+        if (file.Length > MaxPhotoBytes)
+        {
+            return ApiErrorResponses.ValidationResult("profile.photo.invalid_size", "file",
+                "The photo must not exceed 5 MiB.", StatusCodes.Status413PayloadTooLarge);
         }
 
         await using var content = file.OpenReadStream();

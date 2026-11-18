@@ -1,7 +1,9 @@
+using ITMO.Buddy.Api.Configuration;
 using ITMO.Buddy.Application.Abstractions.Services;
 using ITMO.Buddy.Application.Contracts.Common;
 using ITMO.Buddy.Application.Contracts.Conversations;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace ITMO.Buddy.Api.Controllers;
 
@@ -21,6 +23,7 @@ public sealed class ConversationsController(IConversationService conversations) 
         conversations.GetMessagesAsync(id, pagination, cancellationToken);
 
     [HttpPost("{id:guid}/messages")]
+    [EnableRateLimiting(RateLimitingConfiguration.Messages)]
     public Task<MessageResponse> SendMessage(Guid id, SendMessageRequest request, CancellationToken cancellationToken) =>
         conversations.SendMessageAsync(id, request, cancellationToken);
 }

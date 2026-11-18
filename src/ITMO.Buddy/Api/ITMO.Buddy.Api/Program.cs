@@ -39,10 +39,26 @@ builder.Services.AddSignalR();
 builder.Services.AddSingleton<IUserIdProvider, JwtSignalRUserIdProvider>();
 builder.Services.AddSingleton<IRealtimeNotifier, SignalRRealtimeNotifier>();
 builder.Services.AddApiCors(builder.Configuration);
+builder.Services.AddApiRateLimiting(builder.Configuration, builder.Environment.IsDevelopment());
+builder.AddApiHttps();
+var useTrustedForwarding = builder.AddTrustedForwarding();
+builder.Services.AddApiOpenApi();
+builder.Services.AddApiHealthChecks();
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 
 var app = builder.Build();
 
+if (useTrustedForwarding)
+{
+    app.UseForwardedHeaders();
+}
+
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+}
+
+app.UseHttpsRedirection();
 app.UseExceptionHandler(new ExceptionHandlerOptions
 {
     ExceptionHandler = context => ApiErrorResponses.WriteAsync(context, ApiErrorResponses.InternalError)
@@ -52,9 +68,15 @@ app.UseRouting();
 app.UseMiddleware<ChatHubOriginGuard>();
 app.UseCors();
 app.UseAuthentication();
+app.UseRateLimiter();
 app.UseAuthorization();
 
 app.MapControllers();
 app.MapHub<ChatHub>(ChatHub.Path, options => options.CloseOnAuthenticationExpiration = true);
+app.MapApiHealthChecks();
+if (app.Environment.IsDevelopment())
+{
+    app.MapOpenApi().AllowAnonymous();
+}
 
 app.Run();

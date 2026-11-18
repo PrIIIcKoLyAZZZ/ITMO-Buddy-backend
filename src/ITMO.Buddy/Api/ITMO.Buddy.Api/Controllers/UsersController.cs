@@ -9,6 +9,7 @@ namespace ITMO.Buddy.Api.Controllers;
 public sealed class UsersController(IProfileService profiles) : ControllerBase
 {
     [HttpDelete("me")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeleteMe(CancellationToken cancellationToken)
     {
         await profiles.DeleteMyAccountAsync(cancellationToken);

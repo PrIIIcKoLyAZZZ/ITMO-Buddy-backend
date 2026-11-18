@@ -8,6 +8,7 @@ namespace ITMO.Buddy.Api.Controllers;
 public sealed class BlocksController(IBlockService blocks) : ControllerBase
 {
     [HttpPost("{userId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Block(Guid userId, CancellationToken cancellationToken)
     {
         await blocks.BlockAsync(userId, cancellationToken);
@@ -15,6 +16,7 @@ public sealed class BlocksController(IBlockService blocks) : ControllerBase
     }
 
     [HttpDelete("{userId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Unblock(Guid userId, CancellationToken cancellationToken)
     {
         await blocks.UnblockAsync(userId, cancellationToken);

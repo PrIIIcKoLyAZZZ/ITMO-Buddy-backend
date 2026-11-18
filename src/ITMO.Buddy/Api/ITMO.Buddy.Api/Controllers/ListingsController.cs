@@ -21,6 +21,7 @@ public sealed class ListingsController(IListingService listings, IListingRespons
         listings.GetMyListingsAsync(pagination, cancellationToken);
 
     [HttpPost]
+    [ProducesResponseType<ListingResponse>(StatusCodes.Status201Created)]
     public async Task<ActionResult<ListingResponse>> Create(
         CreateListingRequest request, CancellationToken cancellationToken)
     {
@@ -37,6 +38,7 @@ public sealed class ListingsController(IListingService listings, IListingRespons
         listings.UpdateAsync(id, request, cancellationToken);
 
     [HttpDelete("{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         await listings.DeleteAsync(id, cancellationToken);
@@ -44,6 +46,7 @@ public sealed class ListingsController(IListingService listings, IListingRespons
     }
 
     [HttpPost("{id:guid}/close")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Close(Guid id, CancellationToken cancellationToken)
     {
         await listings.CloseAsync(id, cancellationToken);

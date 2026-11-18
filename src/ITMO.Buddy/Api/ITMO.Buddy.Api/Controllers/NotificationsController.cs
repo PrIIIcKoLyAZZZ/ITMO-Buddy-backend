@@ -20,6 +20,7 @@ public sealed class NotificationsController(
         notifications.GetMyNotificationsAsync(pagination, cancellationToken);
 
     [HttpPost("read")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> MarkRead(MarkNotificationsReadRequest request, CancellationToken cancellationToken)
     {
         var validation = await markReadValidator.ValidateAsync(request, cancellationToken);

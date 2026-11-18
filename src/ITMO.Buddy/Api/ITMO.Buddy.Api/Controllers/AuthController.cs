@@ -1,8 +1,11 @@
+using ITMO.Buddy.Api.RateLimiting;
+using ITMO.Buddy.Api.Configuration;
 using ITMO.Buddy.Api.Authentication;
 using ITMO.Buddy.Application.Abstractions.Services;
 using ITMO.Buddy.Application.Contracts.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace ITMO.Buddy.Api.Controllers;
 
@@ -14,6 +17,8 @@ namespace ITMO.Buddy.Api.Controllers;
 public sealed class AuthController(IAuthService auth) : ControllerBase
 {
     [HttpPost("register")]
+    [ProducesResponseType<AuthResponse>(StatusCodes.Status201Created)]
+    [EnableRateLimiting(RateLimitingConfiguration.Register)]
     public async Task<ActionResult<AuthResponse>> Register(RegisterRequest request, CancellationToken cancellationToken)
     {
         var session = await auth.RegisterAsync(request, cancellationToken);
@@ -22,6 +27,8 @@ public sealed class AuthController(IAuthService auth) : ControllerBase
     }
 
     [HttpPost("login")]
+    [EnableRateLimiting(RateLimitingConfiguration.Login)]
+    [ServiceFilter(typeof(LoginRateLimitGuard))]
     public async Task<ActionResult<AuthResponse>> Login(LoginRequest request, CancellationToken cancellationToken)
     {
         var session = await auth.LoginAsync(request, cancellationToken);
@@ -30,6 +37,7 @@ public sealed class AuthController(IAuthService auth) : ControllerBase
     }
 
     [HttpPost("refresh")]
+    [EnableRateLimiting(RateLimitingConfiguration.Refresh)]
     public async Task<ActionResult<AuthResponse>> Refresh(CancellationToken cancellationToken)
     {
         var session = await auth.RefreshAsync(RefreshCookieManager.Read(Request) ?? string.Empty, cancellationToken);
@@ -38,6 +46,7 @@ public sealed class AuthController(IAuthService auth) : ControllerBase
     }
 
     [HttpPost("logout")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Logout(CancellationToken cancellationToken)
     {
         await auth.LogoutAsync(RefreshCookieManager.Read(Request), cancellationToken);
