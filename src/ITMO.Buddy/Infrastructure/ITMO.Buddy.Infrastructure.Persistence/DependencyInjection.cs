@@ -106,6 +106,8 @@ public static class DependencyInjection
 
         // Unit of Work and transactions
 
+        services.AddScoped<IUserPairLock, PostgresUserPairLock>();
+
         services.AddScoped<
             IUnitOfWork,
             BuddyUnitOfWork>();

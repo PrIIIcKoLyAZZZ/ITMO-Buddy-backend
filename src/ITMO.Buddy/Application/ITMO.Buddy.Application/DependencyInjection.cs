@@ -16,6 +16,7 @@ using ITMO.Buddy.Application.Contracts.Profiles;
 using ITMO.Buddy.Application.Contracts.Recommendations;
 using ITMO.Buddy.Application.Contracts.Responses;
 using ITMO.Buddy.Application.Contracts.Search;
+using ITMO.Buddy.Application.Interactions;
 using ITMO.Buddy.Application.Listings;
 using ITMO.Buddy.Application.Recommendations;
 using ITMO.Buddy.Application.Search;
@@ -39,6 +40,8 @@ public static class DependencyInjection
         services.TryAddScoped<IRecommendationService, RecommendationService>();
         services.TryAddScoped<IListingService, ListingService>();
         services.TryAddScoped<IListingResponseService, ListingResponseService>();
+        services.TryAddScoped<ILikeService, LikeService>();
+        services.TryAddScoped<IBlockService, BlockService>();
         services.TryAddScoped<ListingAccess>();
         services.TryAddScoped<ListingPresentation>();
         services.TryAddScoped<RealtimeDelivery>();

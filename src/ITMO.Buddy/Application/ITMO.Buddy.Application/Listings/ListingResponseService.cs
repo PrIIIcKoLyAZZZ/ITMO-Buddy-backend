@@ -22,6 +22,7 @@ internal sealed class ListingResponseService(
     IConversationRepository conversations,
     INotificationRepository notifications,
     ITransactionRunner transactions,
+    IUserPairLock pairLock,
     IDateTimeProvider clock,
     IRealtimeNotifier notifier,
     RealtimeDelivery realtime,
@@ -118,6 +119,11 @@ internal sealed class ListingResponseService(
             return await transactions.ExecuteAsync(async token =>
             {
                 var listing = await listings.GetByIdAsync(listingId, token) ?? throw ListingAccess.NotFound();
+                if (candidateId != listing.AuthorId)
+                {
+                    await pairLock.AcquireAsync(candidateId, listing.AuthorId, token);
+                }
+
                 if (!await access.CanInteractAsync(candidateId, listing.AuthorId, token))
                 {
                     throw ListingAccess.NotFound();
@@ -156,6 +162,7 @@ internal sealed class ListingResponseService(
                 ListingAccess.RequireOwner(listing.AuthorId, user.Id);
 
                 var response = listing.Responses.SingleOrDefault(item => item.Id == responseId) ?? throw ResponseNotFound();
+                await pairLock.AcquireAsync(user.Id, response.CandidateId, token);
                 if (!await access.CanInteractAsync(user.Id, response.CandidateId, token))
                 {
                     throw AppException.Forbidden("listing.response.candidate_unavailable", "The candidate is unavailable.");
