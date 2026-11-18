@@ -4,6 +4,7 @@ using System.Xml;
 using ITMO.Buddy.Application.Abstractions.Storage;
 using Microsoft.Extensions.Options;
 using Minio;
+using Minio.DataModel;
 using Minio.DataModel.Args;
 using Minio.Exceptions;
 
@@ -130,6 +131,11 @@ internal sealed partial class MinioFileStorage : IFileStorage, IDisposable
         }
     }
 
+    internal IAsyncEnumerable<Item> ListProfileObjectsAsync(CancellationToken cancellationToken) =>
+        _storageClient.ListObjectsEnumAsync(
+            new ListObjectsArgs().WithBucket(_bucketName).WithPrefix("profiles/").WithRecursive(true),
+            cancellationToken);
+
     public void Dispose()
     {
         _signingClient.Dispose();
@@ -244,6 +250,8 @@ internal sealed partial class MinioFileStorage : IFileStorage, IDisposable
 
     private sealed class StorageHttpHandler() : DelegatingHandler(new SocketsHttpHandler { AllowAutoRedirect = false })
     {
+        private const int MaximumListingPageBytes = 8 * 1024 * 1024;
+
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             var response = await base.SendAsync(request, cancellationToken);
@@ -256,6 +264,20 @@ internal sealed partial class MinioFileStorage : IFileStorage, IDisposable
                      HttpStatusCode.RequestTimeout or HttpStatusCode.TooManyRequests) &&
                  response.Content.Headers.ContentLength != 0))
             {
+                if (request.Method == HttpMethod.Get)
+                {
+                    try
+                    {
+                        // The SDK parses each listing page synchronously. Read its body under the HTTP deadline.
+                        await response.Content.LoadIntoBufferAsync(MaximumListingPageBytes, cancellationToken);
+                    }
+                    catch
+                    {
+                        response.Dispose();
+                        throw;
+                    }
+                }
+
                 return response;
             }
 
