@@ -14,5 +14,19 @@ https://localhost:8443 {
 
 https://localhost:9443 {
 	tls internal
-	reverse_proxy minio:9000
+
+	@photo {
+		method GET
+		path /{$MINIO_BUCKET}/profiles/*
+		query X-Amz-Signature=*
+	}
+	handle @photo {
+		reverse_proxy minio:9000 {
+			header_up -Authorization
+			header_up -X-Amz-*
+		}
+	}
+	handle {
+		respond 403
+	}
 }
