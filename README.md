@@ -35,6 +35,7 @@ scripts\dev-up.bat
 | Backend Base URL | `https://localhost:8443` |
 | REST API | `https://localhost:8443/api/...` |
 | SignalR | `https://localhost:8443/hubs/chat` |
+| Swagger UI | `https://localhost:8443/swagger` |
 | OpenAPI | `https://localhost:8443/openapi/v1.json` |
 | Liveness | `https://localhost:8443/health/live` |
 | Readiness | `https://localhost:8443/health/ready` |
@@ -54,6 +55,17 @@ curl --fail --cacert .docker-local/root.crt https://localhost:8443/openapi/v1.js
 ```
 
 В Windows CMD укажите `curl.exe`. Liveness проверяет, что процесс API отвечает. Readiness проверяет подключение к PostgreSQL. Для функциональной проверки MinIO загрузите и скачайте фото.
+
+## Swagger UI — интерактивная документация API
+
+После запуска Docker-стека откройте `https://localhost:8443/swagger` в браузере, который доверяет локальному CA. Swagger UI загружает документ `/openapi/v1.json`. Оба маршрута доступны в Development для локальной работы с API. Production отключает публикацию документа и интерфейса.
+
+1. Раскройте `POST /api/auth/register` или `POST /api/auth/login` и нажмите **Try it out**. Если форма просит заполнить `Origin`, укажите `https://localhost:8443`. Фактический заголовок `Origin` браузер формирует сам.
+2. Заполните JSON запроса и нажмите **Execute**. Скопируйте `accessToken` из ответа.
+3. Нажмите **Authorize**, вставьте JWT без префикса `Bearer` и подтвердите. Swagger добавит префикс сам.
+4. Раскройте `GET /api/profiles/me`, нажмите **Try it out** и **Execute**. Ответ отобразится под запросом.
+
+Браузер сохраняет refresh-cookie из register/login и отправляет его при **Try it out** для `POST /api/auth/refresh` и `POST /api/auth/logout` на том же HTTPS origin. После refresh можно обновить JWT в **Authorize**. Logout очищает refresh-cookie. Чтобы убрать JWT из Swagger UI, очистите авторизацию в диалоге **Authorize**.
 
 ## JWT Authentication
 

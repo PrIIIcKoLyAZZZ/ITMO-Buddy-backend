@@ -314,6 +314,9 @@ ITMO Buddy Backend is ready.
 Backend:
 https://localhost:8443
 
+Swagger UI:
+https://localhost:8443/swagger
+
 OpenAPI:
 https://localhost:8443/openapi/v1.json
 
