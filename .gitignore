@@ -1,0 +1,26 @@
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+!.env.docker.example
+
+# .NET
+**/bin/
+**/obj/
+.vs/
+*.user
+*.suo
+
+# JetBrains Rider
+.idea/
+*.DotSettings.user
+
+# Local IDE files
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local public Caddy CA and trust marker
+.docker-local/

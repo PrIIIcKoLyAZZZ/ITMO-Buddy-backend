@@ -7,8 +7,17 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
-      <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+        <ProjectReference Include="../../Application/ITMO.Buddy.Application/ITMO.Buddy.Application.csproj" />
+        <ProjectReference Include="../../Application/ITMO.Buddy.Application.Contracts/ITMO.Buddy.Application.Contracts.csproj" />
+        <ProjectReference Include="../../Application/ITMO.Buddy.Application.Abstractions/ITMO.Buddy.Application.Abstractions.csproj" />
+        <ProjectReference Include="../../Infrastructure/ITMO.Buddy.Infrastructure/ITMO.Buddy.Infrastructure.csproj" />
+        <ProjectReference Include="../../Infrastructure/ITMO.Buddy.Infrastructure.Persistence/ITMO.Buddy.Infrastructure.Persistence.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+        <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+        <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" />
     </ItemGroup>
 
 </Project>
