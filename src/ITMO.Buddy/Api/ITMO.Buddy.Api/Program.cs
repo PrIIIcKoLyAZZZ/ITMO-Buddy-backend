@@ -64,6 +64,12 @@ app.UseExceptionHandler(new ExceptionHandlerOptions
     ExceptionHandler = context => ApiErrorResponses.WriteAsync(context, ApiErrorResponses.InternalError)
 });
 app.UseStatusCodePages(ApiErrorResponses.WriteEmptyClientErrorAsync);
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwaggerUI(options => options.SwaggerEndpoint("/openapi/v1.json", "ITMO Buddy API v1"));
+    app.MapOpenApi().AllowAnonymous();
+}
+
 app.UseRouting();
 app.UseMiddleware<ChatHubOriginGuard>();
 app.UseCors();
@@ -74,9 +80,5 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHub<ChatHub>(ChatHub.Path, options => options.CloseOnAuthenticationExpiration = true);
 app.MapApiHealthChecks();
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi().AllowAnonymous();
-}
 
 app.Run();

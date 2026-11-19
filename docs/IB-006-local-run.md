@@ -1,5 +1,7 @@
 # Локальный запуск ITMO Buddy API
 
+Для работы с Frontend используйте [Docker-окружение из README](../README.md) с API на `https://localhost:8443`. Ниже описан отдельный ручной режим IB-006.
+
 ## Требования и переменные
 
 Нужны .NET SDK 10, Docker Compose для PostgreSQL 17, OpenSSL, curl и jq. Для локального MinIO из исходников нужны Go 1.24 или новее и Git. Для HTTPS к хранилищу нужны Caddy 2 и mkcert.

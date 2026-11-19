@@ -13,15 +13,17 @@ public sealed partial class MinioOptions
     public string BucketName { get; set; } = string.Empty;
     public string Region { get; set; } = "us-east-1";
     public TimeSpan PresignedUrlLifetime { get; set; } = TimeSpan.FromMinutes(5);
+    internal bool IsDevelopment { get; set; }
 
     internal (Uri Internal, Uri External) ValidateAndReadEndpoints()
     {
         var internalEndpoint = ReadOrigin(InternalEndpoint, nameof(InternalEndpoint));
         var externalEndpoint = ReadOrigin(ExternalEndpoint, nameof(ExternalEndpoint));
-        if (externalEndpoint.Scheme != Uri.UriSchemeHttps ||
-            externalEndpoint.HostNameType != UriHostNameType.Dns ||
-            !externalEndpoint.IdnHost.TrimEnd('.').Contains('.') ||
-            externalEndpoint.IsLoopback)
+        var localDevelopmentEndpoint = IsDevelopment && externalEndpoint.IdnHost == "localhost" &&
+            externalEndpoint.Port == 9443;
+        var publicDnsEndpoint = externalEndpoint.HostNameType == UriHostNameType.Dns &&
+            externalEndpoint.IdnHost.TrimEnd('.').Contains('.') && !externalEndpoint.IsLoopback;
+        if (externalEndpoint.Scheme != Uri.UriSchemeHttps || !(localDevelopmentEndpoint || publicDnsEndpoint))
         {
             throw new ArgumentException("MinIO external endpoint must use HTTPS and a browser-facing DNS name.",
                 nameof(ExternalEndpoint));

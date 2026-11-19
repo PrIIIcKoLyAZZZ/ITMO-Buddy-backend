@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+!.env.docker.example
 
 # .NET
 **/bin/
@@ -20,3 +21,6 @@
 # OS
 .DS_Store
 Thumbs.db
+
+# Local public Caddy CA and trust marker
+.docker-local/
